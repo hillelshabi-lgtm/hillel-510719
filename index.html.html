@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ספריית בית הספר "הלל"</title>
+    <!-- טעינת גופן עברי נקי וברור -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS לעיצוב רספונסיבי ומודרני -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js למשחק התלת-ממדי "רכבת הספרים" -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Rubik', 'sans-serif'],
+                    },
+                    colors: {
+                        israelBlue: '#0038b8',
+                        israelLight: '#1d56d8',
+                        israelSoft: '#eef4ff',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* הגדרות בסיס ואנימציות מותאמות */
+        body {
+            font-family: 'Rubik', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* אנימציית נדנוד עדינה לסמל בית הספר */
+        @keyframes gentleSwing {
+            0%, 82%, 100% { transform: rotate(0deg); }
+            86% { transform: rotate(-7deg); }
+            90% { transform: rotate(6deg); }
+            94% { transform: rotate(-4deg); }
+            98% { transform: rotate(2deg); }
+        }
+        .school-logo-swing {
+            animation: gentleSwing 6s ease-in-out infinite;
+            transform-origin: top center;
+        }
+
+        /* אנימציית גל למדף הספרים בכותרת ובמסך הכניסה */
+        @keyframes bookWave {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-7px); }
+        }
+        .book-wave-item {
+            animation: bookWave 2.4s ease-in-out infinite;
+        }
+
+        /* אנימציית קפיצת מונה מטבעות */
+        @keyframes coinBounce {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.35) rotate(8deg); }
+            70% { transform: scale(0.92); }
+            100% { transform: scale(1); }
+        }
+        .coin-pop {
+            animation: coinBounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* אנימציית כניסת שורה חדשה לטבלה */
+        @keyframes rowHighlight {
+            0% { background-color: rgba(59, 130, 246, 0.35); transform: translateY(-8px); opacity: 0; }
+            40% { opacity: 1; transform: translateY(0); }
+            100% { background-color: transparent; }
+        }
+        .new-loan-row {
+            animation: rowHighlight 1.8s ease-out forwards;
+        }
+
+        /* קישור נגישות למקלדת בלבד */
+        .skip-link {
+            position: absolute;
+            top: -100px;
+            right: 16px;
+            z-index: 9999;
+            background: #facc15;
+            color: #1e3a8a;
+            font-weight: 700;
+            padding: 10px 18px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            transition: top 0.2s ease;
+        }
+        .skip-link:focus {
+            top: 12px;
+        }
+
+        /* סגנון כפתורי המשחק */
+        .game-btn {
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+        }
+        .game-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+        }
+
+        /* גלילה מותאמת */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(29, 86, 216, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(29, 86, 216, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- קישור נגישות למקלדת בלבד -->
+    <a href="#loan-form-section" class="skip-link" id="skip-to-form-link">דלג לטופס ההשאלה</a>
+
+    <!-- פס התראה על ניתוק אינטרנט -->
+    <div id="offline-banner" class="hidden bg-red-600 text-white text-center py-2.5 px-4 font-bold text-sm sm:text-base shadow-md z-50 sticky top-0">
+        אין חיבור לאינטרנט. שינויים לא יישמרו עד שהחיבור יחזור.
+    </div>
+
+    <!-- פס התראה על מטבעות שלא נשמרו זמנית -->
+    <div id="unsaved-coins-banner" class="hidden bg-amber-600 text-white text-center py-2 px-4 font-medium text-sm shadow-md z-40">
+        חלק מהמטבעות או מההתקדמות עוד לא נשמרו. השאירו את הדף פתוח כדי לא לאבד אותם.
+    </div>
+
+    <!-- אזור הודעות קופצות (Toasts) -->
+    <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:right-auto sm:w-96 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==================== 1. מסך כניסה למערכת ==================== -->
+    <div id="login-screen" class="fixed inset-0 z-50 bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 flex items-center justify-center p-4 sm:p-8 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl shadow-2xl border-2 border-blue-200 dark:border-blue-800 p-8 sm:p-12 text-center relative overflow-hidden flex flex-col justify-center">
+            <!-- מדף ספרים מונפש ומלא במסך הכניסה -->
+            <div class="mb-6 flex flex-col items-center w-full">
+                <div class="flex items-end justify-center gap-1 h-16 px-2" aria-hidden="true">
+                    <div class="w-4 h-12 bg-red-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0s;"></div>
+                    <div class="w-5 h-14 bg-amber-400 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.12s;"></div>
+                    <div class="w-4 h-11 bg-emerald-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.24s;"></div>
+                    <div class="w-5 h-15 bg-blue-600 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.36s;"></div>
+                    <div class="w-4 h-13 bg-indigo-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.48s;"></div>
+                    <div class="w-5 h-12 bg-purple-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.60s;"></div>
+                    <div class="w-4 h-14 bg-pink-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.72s;"></div>
+                    <div class="w-5 h-13 bg-orange-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.84s;"></div>
+                    <div class="w-4 h-11 bg-teal-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 0.96s;"></div>
+                    <div class="w-5 h-14 bg-cyan-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 1.08s;"></div>
+                    <div class="w-4 h-12 bg-lime-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 1.20s;"></div>
+                    <div class="w-5 h-13 bg-rose-500 rounded-t-sm book-wave-item shadow" style="animation-delay: 1.32s;"></div>
+                </div>
+                <div class="w-72 sm:w-80 h-3 bg-amber-800 rounded-full shadow-inner"></div>
+            </div>
+
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950 border-2 border-blue-600 mb-4 mx-auto">
+                <svg class="w-9 h-9 text-blue-700 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+            </div>
+
+            <h1 class="text-3xl sm:text-5xl font-extrabold text-blue-900 dark:text-white mb-6">כניסה לספרייה</h1>
+
+            <form id="login-form" class="space-y-4 text-right max-w-xl w-full mx-auto" novalidate>
+                <div>
+                    <label for="login-username" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">שם משתמש</label>
+                    <input type="text" id="login-username" autocomplete="off" placeholder="הקלידו את שמכם..."
+                        class="w-full px-4 py-3.5 rounded-xl border-2 border-blue-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30 transition">
+                </div>
+
+                <div>
+                    <label for="login-password" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">סיסמה</label>
+                    <input type="password" id="login-password" autocomplete="off" placeholder="הקלידו סיסמה..."
+                        class="w-full px-4 py-3.5 rounded-xl border-2 border-blue-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30 transition">
+                </div>
+
+                <!-- סיסמה נוספת למנהל הלל -->
+                <div id="hillel-extra-password-wrapper" class="hidden">
+                    <label for="login-hillel-password" class="block text-sm font-bold text-amber-700 dark:text-amber-300 mb-1.5">סיסמת מנהל נוספת (הלל)</label>
+                    <input type="password" id="login-hillel-password" autocomplete="off" placeholder="הקלידו סיסמת מנהל נוספת..."
+                        class="w-full px-4 py-3.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-amber-50/60 dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-medium focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition">
+                </div>
+
+                <!-- הודעת שגיאה / מצב בכניסה -->
+                <div id="login-message" role="alert" class="hidden p-3 rounded-xl text-sm font-bold text-center"></div>
+
+                <button type="submit" id="login-submit-btn"
+                    class="w-full py-4 px-6 rounded-xl bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white font-bold text-xl shadow-lg shadow-blue-700/30 transition cursor-pointer mt-2">
+                    כניסה
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== 2. האפליקציה הראשית ==================== -->
+    <div id="main-app" class="hidden flex-1 flex flex-col">
+        <!-- סרגל עליון כחול -->
+        <header class="bg-blue-800 dark:bg-blue-950 text-white shadow-lg border-b-4 border-blue-600 sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
+                <!-- צד ימין: סמל בית ספר מתנדנד + כותרת -->
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 sm:w-12 sm:h-12 bg-white rounded-xl flex items-center justify-center shadow-md school-logo-swing shrink-0 border-2 border-blue-200">
+                        <svg class="w-7 h-7 text-blue-800" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-2xl font-extrabold tracking-tight leading-tight">ספריית בית הספר "הלל"</h1>
+                    </div>
+                </div>
+
+                <!-- אמצע (במסך מחשב): מדף ספרים צבעוני עם אנימציית גל -->
+                <div class="hidden lg:flex flex-col items-center" aria-hidden="true">
+                    <div class="flex items-end gap-1.5 h-9 px-3">
+                        <div class="w-3 h-7 bg-red-400 rounded-t-sm book-wave-item" style="animation-delay: 0s;"></div>
+                        <div class="w-3.5 h-8 bg-yellow-300 rounded-t-sm book-wave-item" style="animation-delay: 0.15s;"></div>
+                        <div class="w-3 h-6 bg-emerald-400 rounded-t-sm book-wave-item" style="animation-delay: 0.3s;"></div>
+                        <div class="w-3.5 h-9 bg-sky-300 rounded-t-sm book-wave-item" style="animation-delay: 0.45s;"></div>
+                        <div class="w-3 h-7 bg-pink-400 rounded-t-sm book-wave-item" style="animation-delay: 0.6s;"></div>
+                        <div class="w-3.5 h-8 bg-orange-400 rounded-t-sm book-wave-item" style="animation-delay: 0.75s;"></div>
+                        <div class="w-3 h-6 bg-purple-400 rounded-t-sm book-wave-item" style="animation-delay: 0.9s;"></div>
+                        <div class="w-3.5 h-8 bg-lime-300 rounded-t-sm book-wave-item" style="animation-delay: 1.05s;"></div>
+                    </div>
+                    <div class="w-40 h-1.5 bg-blue-300/60 rounded-full"></div>
+                </div>
+
+                <!-- צד שמאל: פרטי הספרן המחובר + תג מנהל/תואר בצהוב + תפריט 3 נקודות -->
+                <div class="flex items-center gap-2 sm:gap-3 relative">
+                    <div class="text-left">
+                        <div id="header-user-name" class="font-bold text-sm sm:text-base leading-tight"></div>
+                        <div id="header-user-badges" class="text-xs font-bold text-yellow-300 leading-tight mt-0.5"></div>
+                    </div>
+
+                    <button type="button" id="menu-toggle-btn" aria-label="תפריט אפשרויות" aria-expanded="false"
+                        class="p-2.5 rounded-xl bg-blue-700/80 hover:bg-blue-600 active:bg-blue-900 text-white transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="5" r="2"/>
+                            <circle cx="12" cy="12" r="2"/>
+                            <circle cx="12" cy="19" r="2"/>
+                        </svg>
+                    </button>
+
+                    <!-- תפריט 3 הנקודות -->
+                    <div id="main-dropdown-menu" class="hidden absolute left-0 top-full mt-2 w-60 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 z-50 overflow-hidden">
+                        <div id="menu-greeting" class="px-4 py-2.5 text-sm font-extrabold text-blue-800 dark:text-blue-300 bg-blue-50/70 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700">
+                            שלום, ספרן
+                        </div>
+                        <div class="py-1 flex flex-col">
+                            <!-- אפשרויות מנהל בלבד -->
+                            <button type="button" id="menu-edit-classes" class="hidden w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
+                                <span class="text-blue-600 dark:text-blue-400">🏫</span> עריכת כיתות
+                            </button>
+                            <button type="button" id="menu-team-list" class="hidden w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
+                                <span class="text-blue-600 dark:text-blue-400">👥</span> רשימת צוות
+                            </button>
+                            <button type="button" id="menu-export-csv" class="hidden w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
+                                <span class="text-blue-600 dark:text-blue-400">📊</span> ייצוא לאקסל (CSV)
+                            </button>
+                            <!-- אפשרויות לכולם -->
+                            <button type="button" id="menu-librarians" class="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
+                                <span class="text-blue-600 dark:text-blue-400">🪪</span> ספרנים
+                            </button>
+                            <button type="button" id="menu-games" class="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
+                                <span class="text-blue-600 dark:text-blue-400">🎮</span> משחקים
+                            </button>
+                            <button type="button" id="menu-theme-toggle" class="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
+                                <span id="theme-icon">🌙</span> <span id="theme-label">מצב כהה</span>
+                            </button>
+                            <div class="my-1 border-t border-slate-200 dark:border-slate-700"></div>
+                            <button type="button" id="menu-logout" class="w-full text-right px-4 py-2.5 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2.5 cursor-pointer">
+                                <span>🚪</span> התנתקות
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- תוכן מרכזי -->
+        <main class="max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 space-y-8 flex-1">
+
+            <!-- ==================== 3. כרטיס השאלה (הטופס) ==================== -->
+            <section id="loan-form-section" tabindex="-1" class="bg-white dark:bg-slate-900 rounded-2xl border-2 border-blue-600 dark:border-blue-500 shadow-lg overflow-hidden">
+                <!-- פס כותרת כחול -->
+                <div class="bg-blue-700 dark:bg-blue-800 text-white px-4 sm:px-6 py-3 flex items-center justify-between">
+                    <h2 class="text-lg sm:text-xl font-extrabold flex items-center gap-2">
+                        <span>📖</span> כרטיס השאלה
+                    </h2>
+                    <div id="today-date-badge" class="text-xs sm:text-sm font-bold bg-blue-900/60 px-3 py-1 rounded-lg border border-blue-400/30">
+                        היום: --/--/----
+                    </div>
+                </div>
+
+                <!-- טופס ההשאלה -->
+                <form id="loan-form" class="p-4 sm:p-6 space-y-5" novalidate>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                        <!-- שם מלא: בתוך ריבוע גדול עם מסגרת כחולה מודגשת -->
+                        <div class="md:col-span-2 lg:col-span-1 bg-blue-50/70 dark:bg-blue-950/30 p-3.5 rounded-2xl border-2 border-blue-600 dark:border-blue-500 shadow-sm">
+                            <label for="input-student-name" class="block text-sm font-extrabold text-blue-900 dark:text-blue-300 mb-1">
+                                שם מלא <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="input-student-name" placeholder="שם התלמיד/ה..."
+                                class="w-full px-3.5 py-2.5 rounded-xl border-2 border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p id="error-student-name" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1"></p>
+                        </div>
+
+                        <!-- שם הספר -->
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                            <label for="input-book-name" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                שם הספר <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="input-book-name" placeholder="הקלידו את שם הספר..."
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30">
+                            <p id="error-book-name" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1"></p>
+                        </div>
+
+                        <!-- כיתה -->
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                            <label for="input-student-class" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                כיתה <span class="text-red-500">*</span>
+                            </label>
+                            <select id="input-student-class"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30">
+                                <option value="">בחרו כיתה...</option>
+                            </select>
+                            <p id="error-student-class" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1"></p>
+                        </div>
+
+                        <!-- תאריך השאלה -->
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                            <label for="input-loan-date" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                תאריך השאלה
+                            </label>
+                            <input type="text" id="input-loan-date" placeholder="יום/חודש/שנה" dir="ltr"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-right focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30">
+                            <p id="error-loan-date" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1"></p>
+                        </div>
+
+                        <!-- תאריך החזרה -->
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                            <label for="input-return-date" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                תאריך החזרה
+                            </label>
+                            <input type="text" id="input-return-date" placeholder="יום/חודש/שנה" dir="ltr"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-right focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30">
+                            <p id="error-return-date" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1"></p>
+                        </div>
+
+                        <!-- הערות -->
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                            <label for="input-notes" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                הערות
+                            </label>
+                            <input type="text" id="input-notes" placeholder="הערה חופשית (לא חובה)..."
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button type="submit" id="submit-loan-btn"
+                            class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white font-extrabold text-base sm:text-lg shadow-md shadow-blue-700/20 transition cursor-pointer">
+                            הוספה למערכת
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- ==================== 4. רשימת "ספרים מושאלים" ==================== -->
+            <section class="space-y-4">
+                <div class="border-b-4 border-blue-700 dark:border-blue-500 pb-2">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-blue-950 dark:text-white">ספרים מושאלים</h2>
+                </div>
+
+                <!-- סרגל חיפוש וסינון -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="relative flex-1 max-w-md">
+                        <input type="text" id="search-loans-input" placeholder="חיפוש לפי תלמיד, ספר או כיתה"
+                            class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-medium focus:outline-none focus:border-blue-600">
+                        <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                    </div>
+
+                    <!-- כפתורי סינון עם מונים -->
+                    <div class="flex flex-wrap items-center gap-2" id="filter-buttons-group">
+                        <button type="button" data-filter="all" class="filter-btn px-3.5 py-2 rounded-xl text-sm font-bold bg-blue-700 text-white shadow-sm cursor-pointer">
+                            הכל (<span id="count-all">0</span>)
+                        </button>
+                        <button type="button" data-filter="borrowed" class="filter-btn px-3.5 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer">
+                            מושאלים (<span id="count-borrowed">0</span>)
+                        </button>
+                        <button type="button" data-filter="overdue" class="filter-btn px-3.5 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-slate-700 cursor-pointer">
+                            באיחור (<span id="count-overdue">0</span>)
+                        </button>
+                        <button type="button" data-filter="returned" class="filter-btn px-3.5 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 cursor-pointer">
+                            הוחזרו (<span id="count-returned">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- טבלת השאלות -->
+                <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="bg-blue-50 dark:bg-slate-800/90 text-blue-950 dark:text-blue-200 border-b border-blue-200 dark:border-slate-700 text-xs sm:text-sm font-extrabold">
+                                    <th class="py-3.5 px-4 whitespace-nowrap">שם מלא</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">שם הספר</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">כיתה</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">תאריך השאלה</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">תאריך החזרה</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">סטטוס</th>
+                                    <th class="py-3.5 px-4">הערות</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap text-center">פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loans-table-body" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                                <!-- שורות מתווספות דינמית -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- מצב ריק -->
+                    <div id="loans-empty-state" class="hidden py-12 px-4 text-center text-slate-500 dark:text-slate-400 font-bold text-base">
+                        אין ספרים מושאלים
+                    </div>
+
+                    <!-- עימוד (מעל 100 השאלות) -->
+                    <div id="loans-pagination" class="hidden p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-3 bg-slate-50 dark:bg-slate-900/50">
+                        <button type="button" id="prev-page-btn" class="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-bold disabled:opacity-40 cursor-pointer">
+                            הקודם
+                        </button>
+                        <span id="page-indicator" class="text-sm font-bold text-slate-600 dark:text-slate-300">עמוד 1</span>
+                        <button type="button" id="next-page-btn" class="px-4 py-2 rounded-xl bg-blue-700 text-white text-sm font-bold disabled:opacity-40 cursor-pointer">
+                            המשך לעמוד הבא
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ==================== 5. מודאלים מערכתיים (עריכת כיתות, צוות, פרופילים, אישורים) ==================== -->
+
+    <!-- מודאל עריכת כיתות (מנהל בלבד) -->
+    <div id="modal-classes" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-blue-800 text-white rounded-t-3xl flex items-center justify-between">
+                <h3 class="text-xl font-extrabold">עריכת כיתות</h3>
+                <button type="button" class="close-modal-btn p-1.5 rounded-xl hover:bg-blue-700 text-white cursor-pointer" data-target="modal-classes">✕</button>
+            </div>
+            <div class="p-5 border-b border-slate-200 dark:border-slate-800">
+                <form id="add-class-form" class="flex gap-2">
+                    <input type="text" id="new-class-input" placeholder="כיתה חדשה"
+                        class="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold cursor-pointer">
+                        הוספה
+                    </button>
+                </form>
+                <p id="class-form-error" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1.5"></p>
+            </div>
+            <div id="classes-list-container" class="p-4 overflow-y-auto space-y-2 flex-1">
+                <!-- רשימת כיתות לעריכה -->
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל רשימת צוות (מנהל בלבד) -->
+    <div id="modal-team" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-blue-800 text-white rounded-t-3xl flex items-center justify-between">
+                <h3 class="text-xl font-extrabold">רשימת צוות</h3>
+                <button type="button" class="close-modal-btn p-1.5 rounded-xl hover:bg-blue-700 text-white cursor-pointer" data-target="modal-team">✕</button>
+            </div>
+            <div class="p-5 border-b border-slate-200 dark:border-slate-800">
+                <form id="add-librarian-form" class="flex gap-2">
+                    <input type="text" id="new-librarian-input" placeholder="ספרן/ית חדש/ה"
+                        class="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold cursor-pointer">
+                        הוספה
+                    </button>
+                </form>
+                <p id="team-form-error" class="hidden text-xs font-bold text-red-600 dark:text-red-400 mt-1.5"></p>
+            </div>
+            <div id="team-list-container" class="p-4 overflow-y-auto space-y-3 flex-1">
+                <!-- רשימת ספרנים לניהול -->
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל ספרנים - פרופילים (לכולם) -->
+    <div id="modal-profiles" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-blue-800 text-white rounded-t-3xl flex items-center justify-between">
+                <h3 class="text-xl font-extrabold">ספרנים</h3>
+                <button type="button" class="close-modal-btn p-1.5 rounded-xl hover:bg-blue-700 text-white cursor-pointer" data-target="modal-profiles">✕</button>
+            </div>
+            <div class="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-3">
+                <!-- צד ימין: רשימת הספרנים -->
+                <div id="profiles-sidebar" class="border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 p-4 overflow-y-auto space-y-2 bg-slate-50 dark:bg-slate-950/50">
+                </div>
+                <!-- צד שמאל: פרטי הפרופיל הנבחר -->
+                <div id="profile-details-pane" class="md:col-span-2 p-5 sm:p-6 overflow-y-auto">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל אישור כללי (מחיקה, התנתקות, ניהול) -->
+    <div id="modal-confirm" class="hidden fixed inset-0 z-[70] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+            <h3 id="confirm-title" class="text-xl font-extrabold text-slate-900 dark:text-white">אישור פעולה</h3>
+            <p id="confirm-message" class="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" id="confirm-cancel-btn" class="px-5 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold cursor-pointer">
+                    ביטול
+                </button>
+                <button type="button" id="confirm-ok-btn" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-md cursor-pointer">
+                    אישור
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 6. אזור המשחקים והמשחק התלת-ממדי "רכבת הספרים" ==================== -->
+    <div id="games-overlay" class="hidden fixed inset-0 z-[60] bg-gradient-to-b from-blue-950 via-slate-900 to-blue-950 text-white flex flex-col overflow-hidden">
+        <!-- סרגל עליון במשחק -->
+        <div class="bg-blue-950/90 border-b border-blue-800/80 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 shrink-0 z-20">
+            <div class="flex items-center gap-3">
+                <button type="button" id="close-games-btn" title="חזרה לספרייה (Esc)"
+                    class="w-10 h-10 rounded-xl bg-red-600/90 hover:bg-red-600 text-white font-extrabold text-lg flex items-center justify-center shadow cursor-pointer">
+                    ✕
+                </button>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg sm:text-xl font-extrabold text-white">משחקים</h2>
+                        <span id="game-header-title-badge" class="text-xs sm:text-sm font-bold text-yellow-300"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- מונה מטבעות צהוב שקופץ -->
+                <div id="game-coin-counter-box" class="flex items-center gap-2 bg-yellow-400/15 border border-yellow-400/50 px-3.5 py-1.5 rounded-2xl">
+                    <span class="text-xl">🪙</span>
+                    <span id="game-coins-value" class="font-extrabold text-yellow-300 text-base sm:text-lg">0</span>
+                </div>
+                <button type="button" id="game-mute-btn" title="השתקת צלילים"
+                    class="w-10 h-10 rounded-xl bg-blue-800/80 hover:bg-blue-700 text-white font-bold flex items-center justify-center cursor-pointer">
+                    🔇
+                </button>
+                <button type="button" id="game-fullscreen-btn" title="מסך מלא"
+                    class="w-10 h-10 rounded-xl bg-blue-800/80 hover:bg-blue-700 text-white font-bold flex items-center justify-center cursor-pointer">
+                    ⛶
+                </button>
+            </div>
+        </div>
+
+        <!-- מסך תקלה במשחק -->
+        <div id="game-error-screen" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+            <div class="text-5xl">⚠️</div>
+            <p id="game-error-text" class="text-lg font-extrabold text-yellow-300 max-w-md">תקלה? אני פה לעזרה.</p>
+            <div class="flex gap-3">
+                <button type="button" id="game-retry-btn" class="game-btn px-6 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-extrabold cursor-pointer">נסו שוב</button>
+                <button type="button" id="game-back-library-btn" class="game-btn px-6 py-2.5 rounded-xl bg-blue-700 text-white font-extrabold cursor-pointer">חזרה לספרייה</button>
+            </div>
+        </div>
+
+        <!-- אזור תוכן מתחלף במשחקים -->
+        <div class="flex-1 overflow-y-auto flex flex-col">
+            <!-- 1. תפריט ראשי של המשחקים -->
+            <div id="game-menu-view" class="max-w-4xl w-full mx-auto px-4 py-8 space-y-6 flex-1 flex flex-col justify-center">
+                <div class="bg-gradient-to-b from-blue-900/90 to-slate-900/95 border-2 border-amber-400/80 rounded-3xl p-8 sm:p-12 text-center shadow-2xl space-y-6">
+                    <div class="text-6xl">🔢</div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold text-yellow-300 drop-shadow">נחש את המספר</h1>
+                    <div class="pt-2">
+                        <button type="button" id="open-crazygame-btn" class="game-btn w-full sm:w-auto py-4 px-12 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xl cursor-pointer">
+                            נחש את המספר
+                        </button>
+                    </div>
+                </div>
+
+                <!-- כפתור חנות תארים וסקינים -->
+                <div class="flex justify-center">
+                    <button type="button" id="open-shop-btn" class="game-btn w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-blue-800 hover:bg-blue-700 text-white font-extrabold text-base flex items-center justify-center gap-3 cursor-pointer">
+                        <span>🛍️</span> חנות תארים וסקינים
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. חנות תארים, סקינים ותלבושות -->
+            <div id="game-shop-view" class="hidden max-w-5xl w-full mx-auto px-4 py-6 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-yellow-300">🛍️ חנות תארים וסקינים</h2>
+                    <button type="button" id="back-from-shop-btn" class="px-4 py-2 rounded-xl bg-blue-800 hover:bg-blue-700 text-white font-bold text-sm cursor-pointer">
+                        חזרה לתפריט המשחק
+                    </button>
+                </div>
+
+                <!-- סקין לשחקן 2 -->
+                <div class="bg-blue-900/60 border border-blue-600/50 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-extrabold text-white">סקין לשחקן 2 (למשחקי צוות וקרב)</h4>
+                        <p class="text-xs text-blue-200">בחרו צבע לדמות של שחקן 2</p>
+                    </div>
+                    <select id="player2-skin-select" class="px-4 py-2 rounded-xl bg-slate-900 border border-blue-500 text-white font-bold text-sm focus:outline-none">
+                    </select>
+                </div>
+
+                <!-- תארים -->
+                <div class="space-y-3">
+                    <h3 class="text-xl font-extrabold text-white border-b border-blue-700 pb-1.5">תארים (מופיעים ליד השם בראש המסך ובפרופיל)</h3>
+                    <div id="shop-titles-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+
+                <!-- סקינים -->
+                <div class="space-y-3">
+                    <h3 class="text-xl font-extrabold text-white border-b border-blue-700 pb-1.5">סקינים (צבע הדמות במשחק)</h3>
+                    <div id="shop-skins-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+                </div>
+
+                <!-- תלבושות -->
+                <div class="space-y-3">
+                    <h3 class="text-xl font-extrabold text-white border-b border-blue-700 pb-1.5">תלבושות (מתלבשות על הדמות במשחק)</h3>
+                    <div id="shop-outfits-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+                </div>
+            </div>
+
+            <!-- 3. תצוגת משחק נחש את המספר בתוך האתר בלבד -->
+            <div id="crazygame-embed-view" class="hidden flex-1 flex flex-col w-full h-full bg-slate-950">
+                <div class="bg-blue-950/95 border-b border-blue-800 px-4 py-2.5 flex items-center justify-between gap-2 shrink-0">
+                    <span class="text-base sm:text-lg font-extrabold text-amber-300">נחש את המספר</span>
+                    <button type="button" id="close-crazygame-btn" class="px-4 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-600 text-white font-bold text-xs sm:text-sm cursor-pointer">
+                        חזרה
+                    </button>
+                </div>
+                <div class="flex-1 relative w-full h-full">
+                    <iframe id="crazygame-iframe" src="about:blank" class="w-full h-full border-0" allow="fullscreen; autoplay; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    (async function() {
+        'use strict';
+
+        // =========================================================================
+        // 1. קבועים, קטלוגים ומצב מערכת גלובלי
+        // =========================================================================
+        const DEFAULT_CLASSES = [
+            "א' דרור", "א' דוכיפת",
+            "ב' פולג", "ב' שניר",
+            "ג' גלבוע", "ג' תבור", "ג' ארבל",
+            "ד' צבעוני", "ד' כלנית", "ד' סביון",
+            "ה' תאנה", "ה' חיטה", "ה' גפן", "ה' רימון",
+            "ו' נגה", "ו' צדק", "ו' חמה",
+            "ז'1", "ז'2", "ז'3",
+            "ח'1", "ח'2", "ח'3"
+        ];
+
+        const TITLES_CATALOG = [
+            { id: 'beginner_reader', name: 'קורא מתחיל', price: 250 },
+            { id: 'bookworm', name: 'תולעת ספרים', price: 1000 },
+            { id: 'advanced_librarian', name: 'ספרן מתקדם', price: 2500 },
+            { id: 'super_librarian', name: 'ספרן על', price: 5000 },
+            { id: 'library_legend', name: 'אגדת הספרייה', price: 10000 },
+            { id: 'eternal_keeper', name: 'שומר המדפים הנצחי', price: 20000 },
+            { id: 'king_of_books', name: 'מלך הספרים', price: 50000 }
+        ];
+
+        const SKINS_CATALOG = [
+            { id: 'classic_blue', name: 'כחול קלאסי', price: 0, color: '#2563eb' },
+            { id: 'fiery_red', name: 'אדום לוהט', price: 300, color: '#dc2626' },
+            { id: 'forest_green', name: 'ירוק יער', price: 500, color: '#16a34a' },
+            { id: 'magic_purple', name: 'סגול קסום', price: 800, color: '#9333ea' },
+            { id: 'ninja_black', name: "נינג'ה", price: 1500, color: '#1e293b' },
+            { id: 'glowing_gold', name: 'זהב', price: 3000, color: '#eab308' },
+            { id: 'rainbow', name: 'קשת בענן', price: 8000, color: 'linear-gradient(45deg, #ef4444, #eab308, #22c55e, #3b82f6)' },
+            { id: 'galaxy', name: 'גלקסיה', price: 12000, color: '#4c1d95' }
+        ];
+
+        const OUTFITS_CATALOG = [
+            { id: 'none', name: 'בלי', price: 0 },
+            { id: 'cap', name: 'כובע מצחייה', price: 400 },
+            { id: 'backpack', name: 'תיק ספרים', price: 1200 },
+            { id: 'astronaut', name: 'קסדת אסטרונאוט', price: 2000 },
+            { id: 'cape', name: 'גלימת גיבור', price: 3500 },
+            { id: 'crown', name: 'כתר', price: 6000 },
+            { id: 'halo', name: 'הילה זוהרת', price: 15000 }
+        ];
+
+        const STORAGE_KEYS = {
+            DEVICE_ID: 'hillel_lib_device_id_v2',
+            CURRENT_USER: 'hillel_lib_current_user_v2',
+            LOCAL_PREFS: 'hillel_lib_local_prefs_v2',
+            PENDING_COINS: 'hillel_lib_pending_coins_v2',
+            LOCAL_BACKUP: 'hillel_lib_backup_state_v2'
+        };
+
+        let deviceId = localStorage.getItem(STORAGE_KEYS.DEVICE_ID);
+        if (!deviceId) {
+            deviceId = 'dev_' + Math.random().toString(36).slice(2, 12) + '_' + Date.now();
+            localStorage.setItem(STORAGE_KEYS.DEVICE_ID, deviceId);
+        }
+
+        let currentUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER) || null;
+        let pendingOfflineCoins = Number(localStorage.getItem(STORAGE_KEYS.PENDING_COINS) || 0);
+
+        let localPrefs = {
+            darkMode: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
+            muted: true,
+            player2Skin: 'fiery_red',
+            ownedOutfits: ['none'],
+            activeOutfit: 'none'
+        };
+        try {
+            const savedPrefs = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_PREFS) || 'null');
+            if (savedPrefs) localPrefs = { ...localPrefs, ...savedPrefs };
+        } catch (e) {}
+
+        function saveLocalPrefs() {
+            try { localStorage.setItem(STORAGE_KEYS.LOCAL_PREFS, JSON.stringify(localPrefs)); } catch (e) {}
+        }
+
+        function setPendingCoins(val) {
+            pendingOfflineCoins = Math.max(0, Number(val || 0));
+            try { localStorage.setItem(STORAGE_KEYS.PENDING_COINS, String(pendingOfflineCoins)); } catch (e) {}
+            const banner = document.getElementById('unsaved-coins-banner');
+            if (banner) banner.classList.toggle('hidden', pendingOfflineCoins <= 0);
+        }
+
+        const soundFX = { muted: localPrefs.muted };
+
+        let sharedState = {
+            classes: [...DEFAULT_CLASSES],
+            librarians: {
+                'יאשה': { name: 'יאשה', isAdmin: false, coins: 0, lockedAccountId: null, lastSeen: 0, activeTitle: null, ownedTitles: [], activeSkin: 'classic_blue', ownedSkins: ['classic_blue'] },
+                'הלל': { name: 'הלל', isAdmin: true, coins: 0, lockedAccountId: null, lastSeen: 0, activeTitle: null, ownedTitles: [], activeSkin: 'classic_blue', ownedSkins: ['classic_blue'] },
+                'דויד': { name: 'דויד', isAdmin: false, coins: 0, lockedAccountId: null, lastSeen: 0, activeTitle: null, ownedTitles: [], activeSkin: 'classic_blue', ownedSkins: ['classic_blue'] },
+                'דניאל': { name: 'דניאל', isAdmin: false, coins: 0, lockedAccountId: null, lastSeen: 0, activeTitle: null, ownedTitles: [], activeSkin: 'classic_blue', ownedSkins: ['classic_blue'] }
+            },
+            loans: []
+        };
+
+        try {
+            const cached = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_BACKUP) || 'null');
+            if (cached && cached.librarians && Object.keys(cached.librarians).length > 0) {
+                sharedState = {
+                    classes: Array.isArray(cached.classes) && cached.classes.length ? cached.classes : [...DEFAULT_CLASSES],
+                    librarians: cached.librarians,
+                    loans: Array.isArray(cached.loans) ? cached.loans : []
+                };
+            }
+        } catch (e) {}
+
+        function saveLocalBackupCache() {
+            try { localStorage.setItem(STORAGE_KEYS.LOCAL_BACKUP, JSON.stringify(sharedState)); } catch (e) {}
+        }
+
+        // =========================================================================
+        // 2. חיבור Firebase Firestore + Auth לסנכרון בזמן אמת
+        // =========================================================================
+        const DEFAULT_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDoxeEfIMn6s3yUVht-USoCw82B7oPAoj4",
+            authDomain: "hillel-library-596fb.firebaseapp.com",
+            projectId: "hillel-library-596fb",
+            storageBucket: "hillel-library-596fb.firebasestorage.app",
+            messagingSenderId: "697387897222",
+            appId: "1:697387897222:web:8b513a45cf3c02a209dc07"
+        };
+
+        let app = null, auth = null, db = null, isCloudReady = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'hillel-school-library';
+
+        try {
+            let cfg = DEFAULT_FIREBASE_CONFIG;
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const envCfg = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                if (envCfg && envCfg.apiKey) cfg = envCfg;
+            }
+            if (cfg && cfg.apiKey) {
+                app = initializeApp(cfg);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                isCloudReady = true;
+            }
+        } catch (err) {
+            console.warn('Cloud init fallback to local:', err);
+            isCloudReady = false;
+        }
+
+        const metaDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'meta', 'settings');
+        const librarianDocRef = (name) => doc(db, 'artifacts', appId, 'public', 'data', 'librarians', name);
+        const librariansColRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'librarians');
+        const loanDocRef = (id) => doc(db, 'artifacts', appId, 'public', 'data', 'loans', id);
+        const loansColRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'loans');
+
+        // =========================================================================
+        // 3. עזרי תאריכים, הודעות קופצות וערכת נושא
+        // =========================================================================
+        function formatDateIL(dateObj) {
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const y = dateObj.getFullYear();
+            return `${d}/${m}/${y}`;
+        }
+
+        function parseDateIL(str) {
+            if (!str || typeof str !== 'string') return null;
+            const match = str.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (!match) return null;
+            const day = Number(match[1]);
+            const month = Number(match[2]);
+            const year = Number(match[3]);
+            if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+            const dt = new Date(year, month - 1, day);
+            if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return null;
+            dt.setHours(0, 0, 0, 0);
+            return dt;
+        }
+
+        function addOneMonthIL(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = dateObj.getMonth();
+            const day = dateObj.getDate();
+            const targetMonth = month + 1;
+            const lastDayOfNextMonth = new Date(year, targetMonth + 1, 0).getDate();
+            const clampedDay = Math.min(day, lastDayOfNextMonth);
+            return new Date(year, targetMonth, clampedDay);
+        }
+
+        function showToast(text, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const el = document.createElement('div');
+            const bg = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-emerald-600' : 'bg-blue-800';
+            el.className = `${bg} text-white px-4 py-3 rounded-2xl shadow-xl font-bold text-sm pointer-events-auto transition-all duration-300`;
+            el.textContent = text;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            }, 3500);
+        }
+
+        function applyTheme() {
+            document.documentElement.classList.toggle('dark', !!localPrefs.darkMode);
+            const icon = document.getElementById('theme-icon');
+            const label = document.getElementById('theme-label');
+            if (icon) icon.textContent = localPrefs.darkMode ? '☀️' : '🌙';
+            if (label) label.textContent = localPrefs.darkMode ? 'מצב בהיר' : 'מצב כהה';
+        }
+        applyTheme();
+
+        // =========================================================================
+        // 4. נתוני דוגמה ראשוניים + סנכרון ענן
+        // =========================================================================
+        function createInitialSampleLoans() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const nextMonth = addOneMonthIL(today);
+            const pastLoan = new Date(today.getFullYear(), today.getMonth() - 2, 10);
+            const pastDue = new Date(today.getFullYear(), today.getMonth() - 1, 10);
+            return [
+                { id: 'sample_1', studentName: 'נועה לוי', bookName: 'הארי פוטר ואבן החכמים', studentClass: "ה' תאנה", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: false, notes: '', createdAt: Date.now() - 8000 },
+                { id: 'sample_2', studentName: 'איתי כהן', bookName: 'יומנו של חנון 1', studentClass: "ד' כלנית", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: false, notes: '', createdAt: Date.now() - 7000 },
+                { id: 'sample_3', studentName: 'מאיה מזרחי', bookName: 'פרסי ג׳קסון וגנב הברק', studentClass: "ו' נגה", loanDate: formatDateIL(pastLoan), returnDate: formatDateIL(pastDue), returned: false, notes: 'תזכורת להחזרה', createdAt: Date.now() - 6000 },
+                { id: 'sample_4', studentName: 'עומר אברהם', bookName: 'הקמע 1', studentClass: "ג' ארבל", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: true, notes: '', createdAt: Date.now() - 5000 },
+                { id: 'sample_5', studentName: 'תמר גולן', bookName: 'אלה-קרי הילדה מלפלנד', studentClass: "ב' שניר", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: false, notes: '', createdAt: Date.now() - 4000 },
+                { id: 'sample_6', studentName: 'רועי פרץ', bookName: 'כראמל 1', studentClass: "ד' סביון", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: false, notes: '', createdAt: Date.now() - 3000 },
+                { id: 'sample_7', studentName: 'שירה דוד', bookName: 'מנהרת הזמן 1', studentClass: "ג' גלבוע", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: true, notes: '', createdAt: Date.now() - 2000 },
+                { id: 'sample_8', studentName: 'יובל כץ', bookName: 'הנסיך הקטן', studentClass: "ז'1", loanDate: formatDateIL(today), returnDate: formatDateIL(nextMonth), returned: false, notes: '', createdAt: Date.now() - 1000 }
+            ];
+        }
+
+        async function ensureCloudSeeded() {
+            if (!isCloudReady || !db) return;
+            try {
+                const metaSnap = await getDoc(metaDocRef());
+                if (!metaSnap.exists()) {
+                    await setDoc(metaDocRef(), { classes: [...DEFAULT_CLASSES], seededAt: Date.now() });
+                    for (const [name, data] of Object.entries(sharedState.librarians)) {
+                        await setDoc(librarianDocRef(name), data);
+                    }
+                    const samples = createInitialSampleLoans();
+                    for (const loan of samples) {
+                        await setDoc(loanDocRef(loan.id), loan);
+                    }
+                }
+            } catch (e) {
+                console.warn('Seed check error:', e);
+            }
+        }
+
+        let heartbeatInterval = null;
+        let lastKnownCoins = null;
+
+        function startRealtimeCloudListeners() {
+            if (!isCloudReady || !db) return;
+
+            onSnapshot(metaDocRef(), (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (Array.isArray(data.classes)) {
+                        sharedState.classes = data.classes;
+                        saveLocalBackupCache();
+                        populateClassesSelect();
+                        if (!document.getElementById('modal-classes').classList.contains('hidden')) {
+                            renderClassesManager();
+                        }
+                    }
+                }
+            });
+
+            onSnapshot(librariansColRef(), (snap) => {
+                const updated = {};
+                snap.forEach(docSnap => {
+                    updated[docSnap.id] = docSnap.data();
+                });
+                if (Object.keys(updated).length > 0) {
+                    if (currentUser && updated[currentUser] && lastKnownCoins !== null) {
+                        const diff = (updated[currentUser].coins || 0) - lastKnownCoins;
+                        if (diff === 60) showToast('קיבלת 60 מטבעות מהמנהל!', 'success');
+                        else if (diff === -10) showToast('המנהל הוריד 10 מטבעות', 'info');
+                    }
+                    sharedState.librarians = updated;
+                    if (currentUser && sharedState.librarians[currentUser]) {
+                        lastKnownCoins = sharedState.librarians[currentUser].coins || 0;
+                    }
+                    saveLocalBackupCache();
+                }
+
+                if (currentUser) {
+                    const me = sharedState.librarians[currentUser];
+                    const myAccountId = auth?.currentUser?.uid || deviceId;
+                    if (!me || (me.lockedAccountId && me.lockedAccountId !== myAccountId)) {
+                        forceLogout();
+                        return;
+                    }
+                    updateHeaderUI();
+                    updateGameCoinUI();
+                    if (!document.getElementById('modal-team').classList.contains('hidden')) renderTeamManager();
+                    if (!document.getElementById('modal-profiles').classList.contains('hidden')) renderProfilesModal();
+                } else {
+                    loginScreen.classList.remove('hidden');
+                    mainApp.classList.add('hidden');
+                }
+            });
+
+            onSnapshot(loansColRef(), (snap) => {
+                const list = [];
+                snap.forEach(docSnap => list.push(docSnap.data()));
+                list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                sharedState.loans = list;
+                saveLocalBackupCache();
+                renderLoansTable();
+            });
+
+            if (currentUser && sharedState.librarians[currentUser]) {
+                enterLibraryApp();
+            } else {
+                loginScreen.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+            }
+        }
+
+        // =========================================================================
+        // 5. כניסה למערכת והתנתקות
+        // =========================================================================
+        const loginScreen = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        const loginUsernameInput = document.getElementById('login-username');
+        const loginPasswordInput = document.getElementById('login-password');
+        const hillelExtraWrapper = document.getElementById('hillel-extra-password-wrapper');
+        const loginHillelPasswordInput = document.getElementById('login-hillel-password');
+        const loginMessage = document.getElementById('login-message');
+
+        loginUsernameInput.addEventListener('input', () => {
+            const clean = loginUsernameInput.value.trim();
+            hillelExtraWrapper.classList.toggle('hidden', clean !== 'הלל');
+        });
+
+        function showLoginMsg(text, isError = true) {
+            loginMessage.textContent = text;
+            loginMessage.className = `p-3 rounded-xl text-sm font-bold text-center ${isError ? 'bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-200'}`;
+            loginMessage.classList.remove('hidden');
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = loginUsernameInput.value.trim();
+            const pass = loginPasswordInput.value.trim();
+            const hillelPass = loginHillelPasswordInput.value.trim();
+
+            if (!username || !sharedState.librarians[username]) {
+                showLoginMsg('שם המשתמש לא נמצא. הכניסה נכשלה.', true);
+                return;
+            }
+            if (pass !== '44918') {
+                showLoginMsg('הכניסה לא הושלמה. נסו שוב.', true);
+                return;
+            }
+            if (username === 'הלל' && hillelPass !== '340430') {
+                showLoginMsg('הכניסה לא הושלמה. נסו שוב.', true);
+                return;
+            }
+
+            const myAccountId = auth?.currentUser?.uid || deviceId;
+            // בדיקה אם החשבון כבר רשום על שם אחר
+            for (const [libName, libObj] of Object.entries(sharedState.librarians)) {
+                if (libName !== username && libObj.lockedAccountId === myAccountId) {
+                    showLoginMsg(`החשבון שלך כבר רשום בשם ${libName}.`, true);
+                    return;
+                }
+            }
+
+            const targetLib = sharedState.librarians[username];
+            if (targetLib.lockedAccountId && targetLib.lockedAccountId !== myAccountId) {
+                showLoginMsg('שם המשתמש הזה שייך לחשבון אחר. הכניסה נכשלה.', true);
+                return;
+            }
+
+            showLoginMsg('בודק את החשבון… נסו שוב בעוד רגע.', false);
+            targetLib.lockedAccountId = myAccountId;
+            targetLib.lastSeen = Date.now();
+            currentUser = username;
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, currentUser);
+            saveLocalBackupCache();
+
+            if (isCloudReady && db) {
+                try {
+                    await updateDoc(librarianDocRef(username), {
+                        lockedAccountId: myAccountId,
+                        lastSeen: Date.now()
+                    });
+                } catch (err) {
+                    console.warn('Login cloud sync warning:', err);
+                }
+            }
+
+            loginMessage.classList.add('hidden');
+            loginPasswordInput.value = '';
+            loginHillelPasswordInput.value = '';
+            enterLibraryApp();
+        });
+
+        function forceLogout() {
+            currentUser = null;
+            lastKnownCoins = null;
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            stopCrazyGameEmbed();
+            gamesOverlay.classList.add('hidden');
+            mainApp.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        }
+
+        function enterLibraryApp() {
+            loginScreen.classList.add('hidden');
+            mainApp.classList.remove('hidden');
+            lastKnownCoins = sharedState.librarians[currentUser]?.coins || 0;
+            updateHeaderUI();
+            populateClassesSelect();
+            resetLoanFormDates();
+            renderLoansTable();
+
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(() => {
+                if (currentUser && sharedState.librarians[currentUser]) {
+                    sharedState.librarians[currentUser].lastSeen = Date.now();
+                    if (isCloudReady && db && navigator.onLine) {
+                        updateDoc(librarianDocRef(currentUser), { lastSeen: Date.now() }).catch(() => {});
+                    }
+                }
+            }, 30000);
+        }
+
+        function updateHeaderUI() {
+            const user = sharedState.librarians[currentUser];
+            if (!user) return;
+            document.getElementById('header-user-name').textContent = user.name;
+            document.getElementById('menu-greeting').textContent = `שלום, ${user.name}`;
+
+            const badges = [];
+            if (user.isAdmin) badges.push('מנהל');
+            const titleObj = TITLES_CATALOG.find(t => t.id === user.activeTitle);
+            if (titleObj) badges.push(titleObj.name);
+            document.getElementById('header-user-badges').textContent = badges.join(' · ');
+
+            document.getElementById('menu-edit-classes').classList.toggle('hidden', !user.isAdmin);
+            document.getElementById('menu-team-list').classList.toggle('hidden', !user.isAdmin);
+            document.getElementById('menu-export-csv').classList.toggle('hidden', !user.isAdmin);
+        }
+
+        // =========================================================================
+        // 6. תפריט 3 הנקודות, מודאלים ואישורים
+        // =========================================================================
+        const menuToggleBtn = document.getElementById('menu-toggle-btn');
+        const mainDropdownMenu = document.getElementById('main-dropdown-menu');
+
+        menuToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = mainDropdownMenu.classList.contains('hidden');
+            mainDropdownMenu.classList.toggle('hidden', !isHidden);
+            menuToggleBtn.setAttribute('aria-expanded', String(isHidden));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!mainDropdownMenu.contains(e.target) && e.target !== menuToggleBtn) {
+                mainDropdownMenu.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('menu-theme-toggle').addEventListener('click', () => {
+            localPrefs.darkMode = !localPrefs.darkMode;
+            saveLocalPrefs();
+            applyTheme();
+            mainDropdownMenu.classList.add('hidden');
+        });
+
+        let pendingConfirmAction = null;
+        function openConfirmModal(title, message, okText, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            document.getElementById('confirm-ok-btn').textContent = okText;
+            pendingConfirmAction = onConfirm;
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        }
+
+        document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
+            document.getElementById('modal-confirm').classList.add('hidden');
+            pendingConfirmAction = null;
+        });
+
+        document.getElementById('confirm-ok-btn').addEventListener('click', async () => {
+            const fn = pendingConfirmAction;
+            document.getElementById('modal-confirm').classList.add('hidden');
+            pendingConfirmAction = null;
+            if (fn) await fn();
+        });
+
+        document.getElementById('menu-logout').addEventListener('click', () => {
+            mainDropdownMenu.classList.add('hidden');
+            openConfirmModal('התנתקות', 'להתנתק מהמערכת?', 'אישור', () => {
+                forceLogout();
+            });
+        });
+
+        document.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.getAttribute('data-target');
+                if (target) document.getElementById(target).classList.add('hidden');
+            });
+        });
+
+        // =========================================================================
+        // 7. טופס השאלה וטבלת "ספרים מושאלים"
+        // =========================================================================
+        const inputStudentName = document.getElementById('input-student-name');
+        const inputBookName = document.getElementById('input-book-name');
+        const inputStudentClass = document.getElementById('input-student-class');
+        const inputLoanDate = document.getElementById('input-loan-date');
+        const inputReturnDate = document.getElementById('input-return-date');
+        const inputNotes = document.getElementById('input-notes');
+
+        function populateClassesSelect() {
+            const currentVal = inputStudentClass.value;
+            inputStudentClass.innerHTML = '<option value="">בחרו כיתה...</option>' +
+                sharedState.classes.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (sharedState.classes.includes(currentVal)) {
+                inputStudentClass.value = currentVal;
+            }
+        }
+
+        function resetLoanFormDates() {
+            const today = new Date();
+            document.getElementById('today-date-badge').textContent = `היום: ${formatDateIL(today)}`;
+            inputLoanDate.value = formatDateIL(today);
+            inputReturnDate.value = formatDateIL(addOneMonthIL(today));
+        }
+
+        inputLoanDate.addEventListener('change', () => {
+            const parsed = parseDateIL(inputLoanDate.value);
+            if (parsed) {
+                inputReturnDate.value = formatDateIL(addOneMonthIL(parsed));
+            }
+        });
+
+        let newestLoanId = null;
+
+        document.getElementById('loan-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const studentName = inputStudentName.value.trim();
+            const bookName = inputBookName.value.trim();
+            const studentClass = inputStudentClass.value;
+            const loanDateStr = inputLoanDate.value.trim();
+            const returnDateStr = inputReturnDate.value.trim();
+            const notes = inputNotes.value.trim();
+
+            const errStudent = document.getElementById('error-student-name');
+            const errBook = document.getElementById('error-book-name');
+            const errClass = document.getElementById('error-student-class');
+            const errLoanDate = document.getElementById('error-loan-date');
+            const errReturnDate = document.getElementById('error-return-date');
+            [errStudent, errBook, errClass, errLoanDate, errReturnDate].forEach(el => el.classList.add('hidden'));
+
+            let hasError = false;
+            if (!studentName) { errStudent.textContent = 'יש להזין את שם התלמיד'; errStudent.classList.remove('hidden'); hasError = true; }
+            if (!bookName) { errBook.textContent = 'יש להזין את שם הספר'; errBook.classList.remove('hidden'); hasError = true; }
+            if (!studentClass) { errClass.textContent = 'יש לבחור כיתה'; errClass.classList.remove('hidden'); hasError = true; }
+
+            const parsedLoan = parseDateIL(loanDateStr);
+            if (!parsedLoan) { errLoanDate.textContent = 'תאריך בפורמט יום/חודש/שנה'; errLoanDate.classList.remove('hidden'); hasError = true; }
+
+            const parsedReturn = parseDateIL(returnDateStr);
+            if (!parsedReturn) { errReturnDate.textContent = 'תאריך בפורמט יום/חודש/שנה'; errReturnDate.classList.remove('hidden'); hasError = true; }
+            else if (parsedLoan && parsedReturn < parsedLoan) {
+                errReturnDate.textContent = 'תאריך ההחזרה לא יכול להיות לפני תאריך ההשאלה';
+                errReturnDate.classList.remove('hidden');
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            const submitBtn = document.getElementById('submit-loan-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'שומר…';
+
+            const newLoan = {
+                id: 'loan_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                studentName,
+                bookName,
+                studentClass,
+                loanDate: formatDateIL(parsedLoan),
+                returnDate: formatDateIL(parsedReturn),
+                returned: false,
+                notes,
+                createdAt: Date.now()
+            };
+
+            try {
+                if (isCloudReady && db) {
+                    await setDoc(loanDocRef(newLoan.id), newLoan);
+                    const verify = await getDoc(loanDocRef(newLoan.id));
+                    const saved = verify.data();
+                    if (!saved || saved.studentName !== newLoan.studentName || saved.bookName !== newLoan.bookName) {
+                        showToast('השמירה לא אושרה: חלק מהפרטים לא נשמרו כמו שהוזנו. בדקו את הרשומה ברשימה.', 'error');
+                    }
+                } else {
+                    sharedState.loans.unshift(newLoan);
+                    saveLocalBackupCache();
+                    renderLoansTable();
+                }
+
+                newestLoanId = newLoan.id;
+                showToast(`הספר "${bookName}" הושאל ל${studentName}.`, 'success');
+                inputStudentName.value = '';
+                inputBookName.value = '';
+                inputStudentClass.value = '';
+                inputNotes.value = '';
+                resetLoanFormDates();
+                inputStudentName.focus();
+            } catch (err) {
+                showToast('לא ניתן היה לשמור את השינוי. נסו שוב.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'הוספה למערכת';
+            }
+        });
+
+        let currentFilter = 'all';
+        let currentPage = 1;
+        const PAGE_SIZE = 100;
+
+        document.getElementById('search-loans-input').addEventListener('input', () => {
+            currentPage = 1;
+            renderLoansTable();
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentFilter = btn.getAttribute('data-filter');
+                currentPage = 1;
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    const active = b.getAttribute('data-filter') === currentFilter;
+                    b.className = active
+                        ? 'filter-btn px-3.5 py-2 rounded-xl text-sm font-bold bg-blue-700 text-white shadow-sm cursor-pointer'
+                        : 'filter-btn px-3.5 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer';
+                });
+                renderLoansTable();
+            });
+        });
+
+        function getLoanStatus(loan) {
+            if (loan.returned) return 'returned';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const retDate = parseDateIL(loan.returnDate);
+            if (retDate && retDate < today) return 'overdue';
+            return 'borrowed';
+        }
+
+        function renderLoansTable() {
+            const tbody = document.getElementById('loans-table-body');
+            const emptyState = document.getElementById('loans-empty-state');
+            const searchQ = document.getElementById('search-loans-input').value.trim().toLowerCase();
+
+            let countAll = sharedState.loans.length;
+            let countBorrowed = 0, countOverdue = 0, countReturned = 0;
+
+            sharedState.loans.forEach(l => {
+                const st = getLoanStatus(l);
+                if (st === 'borrowed') countBorrowed++;
+                else if (st === 'overdue') countOverdue++;
+                else if (st === 'returned') countReturned++;
+            });
+
+            document.getElementById('count-all').textContent = countAll;
+            document.getElementById('count-borrowed').textContent = countBorrowed;
+            document.getElementById('count-overdue').textContent = countOverdue;
+            document.getElementById('count-returned').textContent = countReturned;
+
+            const filtered = sharedState.loans.filter(l => {
+                const st = getLoanStatus(l);
+                if (currentFilter !== 'all' && st !== currentFilter) return false;
+                if (searchQ) {
+                    const hay = `${l.studentName} ${l.bookName} ${l.studentClass}`.toLowerCase();
+                    if (!hay.includes(searchQ)) return false;
+                }
+                return true;
+            });
+
+            tbody.innerHTML = '';
+            if (filtered.length === 0) {
+                emptyState.textContent = sharedState.loans.length === 0 ? 'אין ספרים מושאלים' : 'אין השאלות שמתאימות לחיפוש';
+                emptyState.classList.remove('hidden');
+                document.getElementById('loans-pagination').classList.add('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+            pageItems.forEach(loan => {
+                const status = getLoanStatus(loan);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition';
+                if (loan.id === newestLoanId) {
+                    tr.classList.add('new-loan-row');
+                    newestLoanId = null;
+                }
+
+                const badgeHtml = status === 'returned'
+                    ? '<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">הוחזר</span>'
+                    : status === 'overdue'
+                    ? '<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">באיחור</span>'
+                    : '<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">מושאל</span>';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">${loan.studentName}</td>
+                    <td class="py-3 px-4 font-medium ${loan.returned ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}">${loan.bookName}</td>
+                    <td class="py-3 px-4 font-medium text-slate-700 dark:text-slate-300">${loan.studentClass}</td>
+                    <td class="py-3 px-4 text-slate-600 dark:text-slate-400">${loan.loanDate}</td>
+                    <td class="py-3 px-4 text-slate-600 dark:text-slate-400">${loan.returnDate}</td>
+                    <td class="py-3 px-4">${badgeHtml}</td>
+                    <td class="py-3 px-4 text-slate-500 dark:text-slate-400 text-xs">${loan.notes || ''}</td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <div class="inline-flex items-center gap-2">
+                            <button type="button" class="toggle-return-btn px-3 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer ${loan.returned ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}">
+                                ${loan.returned ? 'בטל החזרה' : 'הוחזר'}
+                            </button>
+                            <button type="button" class="delete-loan-btn p-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 cursor-pointer" title="מחיקה">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                `;
+
+                tr.querySelector('.toggle-return-btn').addEventListener('click', async () => {
+                    const nextReturned = !loan.returned;
+                    if (isCloudReady && db) {
+                        try {
+                            await updateDoc(loanDocRef(loan.id), { returned: nextReturned });
+                        } catch (e) {
+                            showToast('לא ניתן היה לשמור את השינוי. נסו שוב.', 'error');
+                        }
+                    } else {
+                        loan.returned = nextReturned;
+                        saveLocalBackupCache();
+                        renderLoansTable();
+                    }
+                });
+
+                tr.querySelector('.delete-loan-btn').addEventListener('click', () => {
+                    openConfirmModal(
+                        'למחוק את ההשאלה?',
+                        `הספר "${loan.bookName}" של ${loan.studentName}`,
+                        'מחיקה',
+                        async () => {
+                            if (isCloudReady && db) {
+                                try {
+                                    await deleteDoc(loanDocRef(loan.id));
+                                    const check = await getDoc(loanDocRef(loan.id));
+                                    if (check.exists()) {
+                                        showToast('לא ניתן היה למחוק את הרשומה. נסו שוב.', 'error');
+                                    }
+                                } catch (e) {
+                                    showToast('לא ניתן היה למחוק את הרשומה. נסו שוב.', 'error');
+                                }
+                            } else {
+                                sharedState.loans = sharedState.loans.filter(x => x.id !== loan.id);
+                                saveLocalBackupCache();
+                                renderLoansTable();
+                            }
+                        }
+                    );
+                });
+
+                tbody.appendChild(tr);
+            });
+
+            const pagination = document.getElementById('loans-pagination');
+            if (totalPages > 1) {
+                pagination.classList.remove('hidden');
+                document.getElementById('page-indicator').textContent = `עמוד ${currentPage} מתוך ${totalPages}`;
+                document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+                document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+            } else {
+                pagination.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('prev-page-btn').addEventListener('click', () => {
+            if (currentPage > 1) { currentPage--; renderLoansTable(); }
+        });
+        document.getElementById('next-page-btn').addEventListener('click', () => {
+            currentPage++; renderLoansTable();
+        });
+
+        // =========================================================================
+        // 7B. ניהול כיתות, צוות, פרופילים וייצוא CSV
+        // =========================================================================
+        document.getElementById('menu-edit-classes').addEventListener('click', () => {
+            mainDropdownMenu.classList.add('hidden');
+            document.getElementById('modal-classes').classList.remove('hidden');
+            renderClassesManager();
+        });
+
+        document.getElementById('add-class-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inp = document.getElementById('new-class-input');
+            const err = document.getElementById('class-form-error');
+            err.classList.add('hidden');
+            const name = inp.value.trim();
+            if (!name) return;
+            if (sharedState.classes.includes(name)) {
+                err.textContent = `הכיתה ${name} כבר קיימת.`;
+                err.classList.remove('hidden');
+                return;
+            }
+            const updated = [...sharedState.classes, name];
+            sharedState.classes = updated;
+            inp.value = '';
+            saveLocalBackupCache();
+            populateClassesSelect();
+            renderClassesManager();
+            if (isCloudReady && db) {
+                await setDoc(metaDocRef(), { classes: updated }, { merge: true }).catch(() => {});
+            }
+        });
+
+        function renderClassesManager() {
+            const container = document.getElementById('classes-list-container');
+            container.innerHTML = '';
+            sharedState.classes.forEach((clsName, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
+                row.innerHTML = `
+                    <span class="class-label font-bold text-slate-900 dark:text-white">${clsName}</span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="edit-cls-btn px-3 py-1 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs font-bold cursor-pointer">שינוי</button>
+                        <button type="button" class="del-cls-btn p-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer">🗑️</button>
+                    </div>
+                `;
+                row.querySelector('.edit-cls-btn').addEventListener('click', () => {
+                    row.innerHTML = `
+                        <input type="text" value="${clsName}" class="edit-cls-input flex-1 px-3 py-1.5 rounded-xl border border-blue-500 bg-white dark:bg-slate-900 text-sm font-bold">
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" class="save-cls-btn px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold cursor-pointer">שמירה</button>
+                            <button type="button" class="cancel-cls-btn px-2.5 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-bold cursor-pointer">✕</button>
+                        </div>
+                    `;
+                    row.querySelector('.cancel-cls-btn').addEventListener('click', renderClassesManager);
+                    row.querySelector('.save-cls-btn').addEventListener('click', async () => {
+                        const newVal = row.querySelector('.edit-cls-input').value.trim();
+                        if (!newVal) return;
+                        if (newVal !== clsName && sharedState.classes.includes(newVal)) {
+                            showToast(`הכיתה ${newVal} כבר קיימת.`, 'error');
+                            return;
+                        }
+                        const updated = [...sharedState.classes];
+                        updated[idx] = newVal;
+                        sharedState.classes = updated;
+                        saveLocalBackupCache();
+                        populateClassesSelect();
+                        renderClassesManager();
+                        if (isCloudReady && db) {
+                            await setDoc(metaDocRef(), { classes: updated }, { merge: true }).catch(() => {});
+                        }
+                    });
+                });
+
+                row.querySelector('.del-cls-btn').addEventListener('click', () => {
+                    openConfirmModal(
+                        `למחוק את הכיתה ${clsName}?`,
+                        'השאלות קיימות של הכיתה לא יימחקו.',
+                        'מחיקה',
+                        async () => {
+                            const updated = sharedState.classes.filter((_, i) => i !== idx);
+                            sharedState.classes = updated;
+                            saveLocalBackupCache();
+                            populateClassesSelect();
+                            renderClassesManager();
+                            if (isCloudReady && db) {
+                                await setDoc(metaDocRef(), { classes: updated }, { merge: true }).catch(() => {});
+                            }
+                        }
+                    );
+                });
+                container.appendChild(row);
+            });
+        }
+
+        document.getElementById('menu-team-list').addEventListener('click', () => {
+            mainDropdownMenu.classList.add('hidden');
+            document.getElementById('modal-team').classList.remove('hidden');
+            renderTeamManager();
+        });
+
+        document.getElementById('add-librarian-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inp = document.getElementById('new-librarian-input');
+            const err = document.getElementById('team-form-error');
+            err.classList.add('hidden');
+            const name = inp.value.trim();
+            if (!name) return;
+            if (sharedState.librarians[name]) {
+                err.textContent = `${name} כבר ברשימה.`;
+                err.classList.remove('hidden');
+                return;
+            }
+            const newLib = {
+                name, isAdmin: false, coins: 0, lockedAccountId: null, lastSeen: 0,
+                activeTitle: null, ownedTitles: [], activeSkin: 'classic_blue', ownedSkins: ['classic_blue']
+            };
+            sharedState.librarians[name] = newLib;
+            inp.value = '';
+            saveLocalBackupCache();
+            renderTeamManager();
+            if (isCloudReady && db) {
+                await setDoc(librarianDocRef(name), newLib).catch(() => {});
+            }
+        });
+
+        function isLibrarianOnline(lib) {
+            return lib && lib.lastSeen && (Date.now() - lib.lastSeen) <= 90000;
+        }
+
+        function renderTeamManager() {
+            const container = document.getElementById('team-list-container');
+            container.innerHTML = '';
+            Object.values(sharedState.librarians).forEach(lib => {
+                const online = isLibrarianOnline(lib);
+                const isProtected = lib.name === 'הלל' || lib.name === currentUser;
+                const row = document.createElement('div');
+                row.className = 'p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+                row.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-base text-slate-900 dark:text-white">${lib.name}</span>
+                            ${lib.isAdmin ? '<span class="px-2 py-0.5 rounded-lg bg-amber-300 text-slate-950 text-xs font-extrabold">מנהל</span>' : ''}
+                            <span class="inline-flex items-center gap-1 text-xs font-bold ${online ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">
+                                <span class="w-2.5 h-2.5 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                                ${online ? 'מחובר/ת' : 'לא מחובר/ת'}
+                            </span>
+                        </div>
+                        <div class="text-sm font-bold text-amber-600 dark:text-amber-300">🪙 ${Number(lib.coins || 0).toLocaleString()} מטבעות</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" class="plus-coins-btn px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold cursor-pointer">+60 מטבעות</button>
+                        <button type="button" ${(lib.coins || 0) < 10 ? 'disabled' : ''} class="minus-coins-btn px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-xs font-extrabold cursor-pointer">−10 מטבעות</button>
+                        ${!isProtected ? `<button type="button" class="toggle-admin-btn px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold cursor-pointer">${lib.isAdmin ? 'הסרת ניהול' : 'הגדר כמנהל'}</button>` : ''}
+                        ${!isProtected ? `<button type="button" class="remove-lib-btn p-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer">🗑️</button>` : ''}
+                    </div>
+                `;
+
+                row.querySelector('.plus-coins-btn').addEventListener('click', async () => {
+                    const nextCoins = (lib.coins || 0) + 60;
+                    lib.coins = nextCoins;
+                    saveLocalBackupCache();
+                    renderTeamManager();
+                    if (isCloudReady && db) {
+                        try {
+                            await updateDoc(librarianDocRef(lib.name), { coins: nextCoins });
+                        } catch (e) {
+                            showToast('לא ברור אם השינוי נשמר. בדקו את היתרה ברשימה לפני שלוחצים שוב.', 'error');
+                        }
+                    }
+                });
+
+                row.querySelector('.minus-coins-btn').addEventListener('click', async () => {
+                    if ((lib.coins || 0) < 10) return;
+                    const nextCoins = Math.max(0, (lib.coins || 0) - 10);
+                    lib.coins = nextCoins;
+                    saveLocalBackupCache();
+                    renderTeamManager();
+                    if (isCloudReady && db) {
+                        try {
+                            await updateDoc(librarianDocRef(lib.name), { coins: nextCoins });
+                        } catch (e) {
+                            showToast('לא ברור אם השינוי נשמר. בדקו את היתרה ברשימה לפני שלוחצים שוב.', 'error');
+                        }
+                    }
+                });
+
+                const toggleAdminBtn = row.querySelector('.toggle-admin-btn');
+                if (toggleAdminBtn) {
+                    toggleAdminBtn.addEventListener('click', () => {
+                        const makingAdmin = !lib.isAdmin;
+                        openConfirmModal(
+                            makingAdmin ? `להגדיר את ${lib.name} כמנהל/ת?` : `להסיר ניהול מ-${lib.name}?`,
+                            'מנהל/ת יכול/ה לערוך כיתות, לנהל את הצוות ולתת או להוריד מטבעות.',
+                            'אישור',
+                            async () => {
+                                lib.isAdmin = makingAdmin;
+                                saveLocalBackupCache();
+                                renderTeamManager();
+                                if (isCloudReady && db) {
+                                    await updateDoc(librarianDocRef(lib.name), { isAdmin: makingAdmin }).catch(() => {});
+                                }
+                            }
+                        );
+                    });
+                }
+
+                const removeBtn = row.querySelector('.remove-lib-btn');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', () => {
+                        openConfirmModal(
+                            `להסיר את ${lib.name} מהצוות?`,
+                            'לא יהיה אפשר להיכנס עם שם המשתמש הזה. השאלות קיימות נשארות.',
+                            'הסרה',
+                            async () => {
+                                delete sharedState.librarians[lib.name];
+                                saveLocalBackupCache();
+                                renderTeamManager();
+                                if (isCloudReady && db) {
+                                    await deleteDoc(librarianDocRef(lib.name)).catch(() => {});
+                                }
+                            }
+                        );
+                    });
+                }
+
+                container.appendChild(row);
+            });
+        }
+
+        let selectedProfileName = null;
+        document.getElementById('menu-librarians').addEventListener('click', () => {
+            mainDropdownMenu.classList.add('hidden');
+            selectedProfileName = currentUser || Object.keys(sharedState.librarians)[0];
+            document.getElementById('modal-profiles').classList.remove('hidden');
+            renderProfilesModal();
+        });
+
+        function renderProfilesModal() {
+            const sidebar = document.getElementById('profiles-sidebar');
+            const pane = document.getElementById('profile-details-pane');
+            const libs = Object.values(sharedState.librarians);
+            if (!selectedProfileName || !sharedState.librarians[selectedProfileName]) {
+                selectedProfileName = libs[0]?.name || null;
+            }
+
+            sidebar.innerHTML = '';
+            libs.forEach(lib => {
+                const online = isLibrarianOnline(lib);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `w-full text-right p-3 rounded-2xl flex items-center justify-between font-bold text-sm cursor-pointer ${selectedProfileName === lib.name ? 'bg-blue-700 text-white' : 'bg-white dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'}`;
+                btn.innerHTML = `
+                    <span class="flex items-center gap-2">
+                        <span>${lib.name}</span>
+                        ${lib.isAdmin ? '<span title="מנהל">🛡️</span>' : ''}
+                    </span>
+                    <span class="w-2.5 h-2.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-400'}"></span>
+                `;
+                btn.addEventListener('click', () => {
+                    selectedProfileName = lib.name;
+                    renderProfilesModal();
+                });
+                sidebar.appendChild(btn);
+            });
+
+            const profile = sharedState.librarians[selectedProfileName];
+            if (!profile) return;
+            const online = isLibrarianOnline(profile);
+            const activeTitleObj = TITLES_CATALOG.find(t => t.id === profile.activeTitle);
+            const ownedTitles = (profile.ownedTitles || []).map(id => TITLES_CATALOG.find(t => t.id === id)).filter(Boolean);
+            const ownedSkins = (profile.ownedSkins || ['classic_blue']).map(id => SKINS_CATALOG.find(s => s.id === id)).filter(Boolean);
+
+            pane.innerHTML = `
+                <div class="space-y-5">
+                    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                        <div>
+                            <h4 class="text-2xl font-extrabold text-slate-900 dark:text-white">${profile.name}</h4>
+                            <div class="text-sm font-bold text-blue-600 dark:text-blue-400">${profile.isAdmin ? 'מנהל' : 'ספרן רגיל'} · ${online ? 'מחובר' : 'לא מחובר'}</div>
+                        </div>
+                        <div class="px-4 py-2 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-extrabold">
+                            🪙 ${Number(profile.coins || 0).toLocaleString()} מטבעות
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-xs font-bold text-slate-400 mb-1">תואר נוכחי</div>
+                        <div class="font-extrabold text-base text-slate-800 dark:text-slate-100">${activeTitleObj ? activeTitleObj.name : 'ללא תואר'}</div>
+                    </div>
+
+                    <div>
+                        <div class="text-xs font-bold text-slate-400 mb-2">תארים שנקנו (${ownedTitles.length})</div>
+                        ${ownedTitles.length === 0 ? '<p class="text-sm text-slate-500">עוד לא נקנו תארים.</p>' : `
+                            <div class="flex flex-wrap gap-2">
+                                ${ownedTitles.map(t => {
+                                    const isAct = profile.activeTitle === t.id;
+                                    return `<span class="relative px-3 py-1.5 rounded-xl text-xs font-extrabold ${isAct ? 'border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}">
+                                        ${t.name}
+                                        ${isAct ? '<span class="mr-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px]">✓</span>' : ''}
+                                    </span>`;
+                                }).join('')}
+                            </div>
+                        `}
+                    </div>
+
+                    <div>
+                        <div class="text-xs font-bold text-slate-400 mb-2">סקינים שנקנו (${ownedSkins.length})</div>
+                        <div class="flex flex-wrap gap-2">
+                            ${ownedSkins.map(s => {
+                                const isAct = (profile.activeSkin || 'classic_blue') === s.id;
+                                return `<span class="relative px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-2 ${isAct ? 'border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}">
+                                    <span class="w-3.5 h-3.5 rounded-full" style="background:${s.color}"></span>
+                                    ${s.name}
+                                    ${isAct ? '<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px]">✓</span>' : ''}
+                                </span>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('menu-export-csv').addEventListener('click', () => {
+            mainDropdownMenu.classList.add('hidden');
+            const headers = ['שם מלא', 'שם הספר', 'כיתה', 'תאריך השאלה', 'תאריך החזרה', 'סטטוס', 'הערות'];
+            const rows = sharedState.loans.map(l => {
+                const st = getLoanStatus(l);
+                const stText = st === 'returned' ? 'הוחזר' : st === 'overdue' ? 'באיחור' : 'מושאל';
+                return [l.studentName, l.bookName, l.studentClass, l.loanDate, l.returnDate, stText, l.notes || '']
+                    .map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            });
+            const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ספריית_הלל_השאלות_${formatDateIL(new Date()).replace(/\//g, '-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // =========================================================================
+        // 8. ניהול אזור המשחקים וחנות הספרייה
+        // =========================================================================
+        const gamesOverlay = document.getElementById('games-overlay');
+        const gameMenuView = document.getElementById('game-menu-view');
+        const gameShopView = document.getElementById('game-shop-view');
+        const crazyGameEmbedView = document.getElementById('crazygame-embed-view');
+        const crazyGameIframe = document.getElementById('crazygame-iframe');
+        const CRAZYGAME_URL = 'https://games.crazygames.com/en_US/guess-the-number-gdx/index.html?czy_invite=true&czy_invite_params=room%3DC5C6';
+        let crazyGameRewardInterval = null;
+
+        document.getElementById('menu-games').addEventListener('click', () => {
+            mainDropdownMenu.classList.add('hidden');
+            openGamesOverlay();
+        });
+
+        function openGamesOverlay() {
+            gamesOverlay.classList.remove('hidden');
+            updateGameCoinUI();
+            showGameMenuView();
+        }
+
+        function updateGameCoinUI() {
+            const user = sharedState.librarians[currentUser];
+            if (!user) return;
+            document.getElementById('game-coins-value').textContent = Number(user.coins || 0).toLocaleString();
+            const titleObj = TITLES_CATALOG.find(t => t.id === user.activeTitle);
+            document.getElementById('game-header-title-badge').textContent = titleObj ? titleObj.name : '';
+        }
+
+        function showGameMenuView() {
+            stopCrazyGameEmbed();
+            gameMenuView.classList.remove('hidden');
+            gameShopView.classList.add('hidden');
+            crazyGameEmbedView.classList.add('hidden');
+            document.getElementById('game-error-screen').classList.add('hidden');
+        }
+
+        function stopCrazyGameEmbed() {
+            if (crazyGameRewardInterval) {
+                clearInterval(crazyGameRewardInterval);
+                crazyGameRewardInterval = null;
+            }
+            if (crazyGameIframe) {
+                crazyGameIframe.src = 'about:blank';
+            }
+        }
+
+        document.getElementById('open-crazygame-btn').addEventListener('click', () => {
+            gameMenuView.classList.add('hidden');
+            gameShopView.classList.add('hidden');
+            document.getElementById('game-error-screen').classList.add('hidden');
+            crazyGameEmbedView.classList.remove('hidden');
+            crazyGameIframe.src = CRAZYGAME_URL;
+            if (crazyGameRewardInterval) clearInterval(crazyGameRewardInterval);
+            crazyGameRewardInterval = setInterval(() => {
+                if (!crazyGameEmbedView.classList.contains('hidden') && !gamesOverlay.classList.contains('hidden')) {
+                    addCoinsToCurrentUser(5);
+                }
+            }, 60000);
+        });
+
+        crazyGameIframe.addEventListener('error', () => {
+            showGameError('תקלה? אני פה לעזרה.');
+        });
+
+        document.getElementById('close-crazygame-btn').addEventListener('click', showGameMenuView);
+
+        function showGameError(msg) {
+            stopCrazyGameEmbed();
+            gameMenuView.classList.add('hidden');
+            gameShopView.classList.add('hidden');
+            crazyGameEmbedView.classList.add('hidden');
+            document.getElementById('game-error-text').textContent = msg || 'תקלה? אני פה לעזרה.';
+            document.getElementById('game-error-screen').classList.remove('hidden');
+        }
+
+        document.getElementById('close-games-btn').addEventListener('click', () => {
+            stopCrazyGameEmbed();
+            gamesOverlay.classList.add('hidden');
+        });
+
+        document.getElementById('game-back-library-btn').addEventListener('click', () => {
+            gamesOverlay.classList.add('hidden');
+        });
+
+        document.getElementById('game-retry-btn').addEventListener('click', () => {
+            showGameMenuView();
+        });
+
+        document.getElementById('game-mute-btn').addEventListener('click', () => {
+            soundFX.muted = !soundFX.muted;
+            localPrefs.muted = soundFX.muted;
+            saveLocalPrefs();
+            document.getElementById('game-mute-btn').textContent = soundFX.muted ? '🔇' : '🔊';
+        });
+
+        document.getElementById('game-fullscreen-btn').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                gamesOverlay.requestFullscreen?.().catch(() => {});
+            } else {
+                document.exitFullscreen?.().catch(() => {});
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !gamesOverlay.classList.contains('hidden')) {
+                stopCrazyGameEmbed();
+                gamesOverlay.classList.add('hidden');
+            }
+        });
+
+        async function addCoinsToCurrentUser(amount) {
+            if (!amount || amount <= 0 || !currentUser) return;
+            const user = sharedState.librarians[currentUser];
+            if (!user) return;
+            user.coins = (user.coins || 0) + amount;
+            saveLocalBackupCache();
+            updateGameCoinUI();
+            const box = document.getElementById('game-coin-counter-box');
+            box.classList.remove('coin-pop');
+            void box.offsetWidth;
+            box.classList.add('coin-pop');
+
+            if (isCloudReady && db && auth?.currentUser && navigator.onLine) {
+                try {
+                    await updateDoc(librarianDocRef(currentUser), { coins: user.coins });
+                } catch (e) {
+                    setPendingCoins(pendingOfflineCoins + amount);
+                }
+            } else {
+                setPendingCoins(pendingOfflineCoins + amount);
+            }
+        }
+
+        // חנות תארים, סקינים ותלבושות
+        document.getElementById('open-shop-btn').addEventListener('click', () => {
+            gameMenuView.classList.add('hidden');
+            gameShopView.classList.remove('hidden');
+            renderShopView();
+        });
+
+        document.getElementById('back-from-shop-btn').addEventListener('click', showGameMenuView);
+
+        function renderShopView() {
+            const user = sharedState.librarians[currentUser];
+            if (!user) return;
+
+            const p2Select = document.getElementById('player2-skin-select');
+            p2Select.innerHTML = SKINS_CATALOG.map(s =>
+                `<option value="${s.id}" ${localPrefs.player2Skin === s.id ? 'selected' : ''}>${s.name}</option>`
+            ).join('');
+            p2Select.onchange = () => {
+                localPrefs.player2Skin = p2Select.value;
+                saveLocalPrefs();
+            };
+
+            // תארים
+            const titlesGrid = document.getElementById('shop-titles-grid');
+            titlesGrid.innerHTML = '';
+            TITLES_CATALOG.forEach(item => {
+                const owned = (user.ownedTitles || []).includes(item.id);
+                const active = user.activeTitle === item.id;
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-2xl bg-blue-950/90 border border-blue-700 flex items-center justify-between gap-2';
+                card.innerHTML = `
+                    <div>
+                        <div class="font-extrabold text-white">${item.name}</div>
+                        <div class="text-xs font-bold text-yellow-300">${owned ? 'נרכש' : `${item.price.toLocaleString()} 🪙`}</div>
+                    </div>
+                    <button type="button" class="px-4 py-2 rounded-xl font-extrabold text-xs cursor-pointer ${active ? 'bg-emerald-500 text-slate-950' : owned ? 'bg-blue-700 text-white' : 'bg-amber-400 text-slate-950'}">
+                        ${active ? 'בשימוש' : owned ? 'שימוש' : `${item.price.toLocaleString()} 🪙`}
+                    </button>
+                `;
+                card.querySelector('button').addEventListener('click', () => handleShopAction('title', item));
+                titlesGrid.appendChild(card);
+            });
+
+            // סקינים
+            const skinsGrid = document.getElementById('shop-skins-grid');
+            skinsGrid.innerHTML = '';
+            SKINS_CATALOG.forEach(item => {
+                const owned = (user.ownedSkins || ['classic_blue']).includes(item.id);
+                const active = (user.activeSkin || 'classic_blue') === item.id;
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-2xl bg-blue-950/90 border border-blue-700 flex flex-col justify-between gap-3';
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-full border border-white/50 shrink-0" style="background:${item.color}"></span>
+                        <div class="font-extrabold text-sm text-white">${item.name}</div>
+                    </div>
+                    <button type="button" class="w-full py-2 rounded-xl font-extrabold text-xs cursor-pointer ${active ? 'bg-emerald-500 text-slate-950' : owned ? 'bg-blue-700 text-white' : 'bg-amber-400 text-slate-950'}">
+                        ${active ? 'בשימוש' : owned ? 'שימוש' : `${item.price.toLocaleString()} 🪙`}
+                    </button>
+                `;
+                card.querySelector('button').addEventListener('click', () => handleShopAction('skin', item));
+                skinsGrid.appendChild(card);
+            });
+
+            // תלבושות
+            const outfitsGrid = document.getElementById('shop-outfits-grid');
+            outfitsGrid.innerHTML = '';
+            OUTFITS_CATALOG.forEach(item => {
+                const owned = (localPrefs.ownedOutfits || ['none']).includes(item.id);
+                const active = (localPrefs.activeOutfit || 'none') === item.id;
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-2xl bg-blue-950/90 border border-blue-700 flex flex-col justify-between gap-3';
+                card.innerHTML = `
+                    <div class="font-extrabold text-sm text-white">${item.name}</div>
+                    <button type="button" class="w-full py-2 rounded-xl font-extrabold text-xs cursor-pointer ${active ? 'bg-emerald-500 text-slate-950' : owned ? 'bg-blue-700 text-white' : 'bg-amber-400 text-slate-950'}">
+                        ${active ? 'בשימוש' : owned ? 'שימוש' : `${item.price.toLocaleString()} 🪙`}
+                    </button>
+                `;
+                card.querySelector('button').addEventListener('click', () => handleShopAction('outfit', item));
+                outfitsGrid.appendChild(card);
+            });
+        }
+
+        async function handleShopAction(category, item) {
+            const user = sharedState.librarians[currentUser];
+            if (!user) return;
+
+            if (category === 'outfit') {
+                const owned = localPrefs.ownedOutfits.includes(item.id);
+                if (owned) {
+                    localPrefs.activeOutfit = item.id;
+                    saveLocalPrefs();
+                    renderShopView();
+                    return;
+                }
+                if ((user.coins || 0) < item.price) {
+                    showToast(`חסרים ${item.price - (user.coins || 0)} מטבעות ל${item.name}`, 'error');
+                    return;
+                }
+                user.coins -= item.price;
+                localPrefs.ownedOutfits.push(item.id);
+                localPrefs.activeOutfit = item.id;
+                saveLocalPrefs();
+                saveLocalBackupCache();
+                updateGameCoinUI();
+                renderShopView();
+                showToast(`קנית: ${item.name}!`, 'success');
+                if (isCloudReady && db && auth?.currentUser) {
+                    await updateDoc(librarianDocRef(currentUser), { coins: user.coins }).catch(() => {});
+                }
+                return;
+            }
+
+            if (category === 'title') {
+                const ownedList = user.ownedTitles || [];
+                if (ownedList.includes(item.id)) {
+                    user.activeTitle = user.activeTitle === item.id ? null : item.id;
+                    saveLocalBackupCache();
+                    updateHeaderUI();
+                    updateGameCoinUI();
+                    renderShopView();
+                    if (isCloudReady && db && auth?.currentUser) {
+                        await updateDoc(librarianDocRef(currentUser), { activeTitle: user.activeTitle }).catch(() => {});
+                    }
+                    return;
+                }
+                if ((user.coins || 0) < item.price) {
+                    showToast(`חסרים ${item.price - (user.coins || 0)} מטבעות ל${item.name}`, 'error');
+                    return;
+                }
+                user.coins -= item.price;
+                user.ownedTitles = [...ownedList, item.id];
+                user.activeTitle = item.id;
+                saveLocalBackupCache();
+                updateHeaderUI();
+                updateGameCoinUI();
+                renderShopView();
+                showToast(`קנית: ${item.name}!`, 'success');
+                if (isCloudReady && db && auth?.currentUser) {
+                    await updateDoc(librarianDocRef(currentUser), {
+                        coins: user.coins,
+                        ownedTitles: user.ownedTitles,
+                        activeTitle: user.activeTitle
+                    }).catch(() => {});
+                }
+                return;
+            }
+
+            if (category === 'skin') {
+                const ownedList = user.ownedSkins || ['classic_blue'];
+                if (ownedList.includes(item.id)) {
+                    user.activeSkin = item.id;
+                    saveLocalBackupCache();
+                    renderShopView();
+                    if (isCloudReady && db && auth?.currentUser) {
+                        await updateDoc(librarianDocRef(currentUser), { activeSkin: user.activeSkin }).catch(() => {});
+                    }
+                    return;
+                }
+                if ((user.coins || 0) < item.price) {
+                    showToast(`חסרים ${item.price - (user.coins || 0)} מטבעות ל${item.name}`, 'error');
+                    return;
+                }
+                user.coins -= item.price;
+                user.ownedSkins = [...ownedList, item.id];
+                user.activeSkin = item.id;
+                saveLocalBackupCache();
+                updateGameCoinUI();
+                renderShopView();
+                showToast(`קנית: ${item.name}!`, 'success');
+                if (isCloudReady && db && auth?.currentUser) {
+                    await updateDoc(librarianDocRef(currentUser), {
+                        coins: user.coins,
+                        ownedSkins: user.ownedSkins,
+                        activeSkin: user.activeSkin
+                    }).catch(() => {});
+                }
+            }
+        }
+
+        function updateOnlineStatus() {
+            const isOnline = navigator.onLine;
+            document.getElementById('offline-banner').classList.toggle('hidden', isOnline);
+            if (isOnline && pendingOfflineCoins > 0 && currentUser) {
+                const toSync = pendingOfflineCoins;
+                setPendingCoins(0);
+                addCoinsToCurrentUser(toSync);
+            }
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // =========================================================================
+        // 9. אתחול ראשוני בטעינת הדף
+        // =========================================================================
+        updateOnlineStatus();
+        if (isCloudReady) {
+            await ensureCloudSeeded();
+            startRealtimeCloudListeners();
+        } else {
+            // מצב גיבוי אם אין חיבור לענן
+            sharedState.loans = createInitialSampleLoans();
+            if (currentUser && sharedState.librarians[currentUser]) {
+                enterLibraryApp();
+            } else {
+                loginScreen.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+            }
+        }
+
+    })();
+    </script>
+</body>
+</html>
