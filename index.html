@@ -619,10 +619,13 @@
 
         const STORAGE_KEYS = {
             DEVICE_ID: 'hillel_lib_device_id_v1',
-            CURRENT_USER: 'hillel_lib_current_user_v1',
+            CURRENT_USER: 'hillel_lib_session_user_v1',
             PREFS: 'hillel_lib_prefs_v1',
             LOCAL_BACKUP: 'hillel_lib_backup_v1'
         };
+
+        // ניקוי שמירת חיבור ישנה מ-localStorage כדי שסגירת הכרטיסיות תנעל תמיד את החשבון
+        try { localStorage.removeItem('hillel_lib_current_user_v1'); } catch (e) {}
 
         let deviceId = localStorage.getItem(STORAGE_KEYS.DEVICE_ID);
         if (!deviceId) {
@@ -701,7 +704,7 @@
         let auth = null;
         let appId = 'hillel-school-library';
         let isCloudReady = false;
-        let currentUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER) || null;
+        let currentUser = sessionStorage.getItem(STORAGE_KEYS.CURRENT_USER) || null;
         let currentFilter = 'all';
 
         const metaDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'meta', 'settings');
@@ -981,7 +984,7 @@
             targetLib.lockedAccountId = myAccountId;
             targetLib.lastSeen = Date.now();
             currentUser = username;
-            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, username);
+            sessionStorage.setItem(STORAGE_KEYS.CURRENT_USER, username);
             saveLocalBackupCache();
 
             if (isCloudReady && db) {
@@ -1007,7 +1010,7 @@
                 enterMainApp();
             } else {
                 currentUser = null;
-                localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+                sessionStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
                 loginScreen.classList.remove('hidden');
                 mainApp.classList.add('hidden');
             }
@@ -1036,7 +1039,7 @@
             const prevUser = currentUser;
             currentUser = null;
             lastKnownCoins = null;
-            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            sessionStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             if (teamCooldownTicker) clearInterval(teamCooldownTicker);
 
@@ -1673,6 +1676,64 @@
                         ${!isProtected ? `<button type="button" class="remove-lib-btn p-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer">🗑️</button>` : ''}
                     </div>
                 `;
+
+                const plusCoinsBtn = row.querySelector('.plus-coins-btn');
+                if (plusCoinsBtn) {
+                    plusCoinsBtn.addEventListener('click', async () => {
+                        if (getCoinCooldownRemainingMs(lib) > 0) return;
+                        lib.coins = (Number(lib.coins) || 0) + 50;
+                        lib.lastCoinAdjustAt = Date.now();
+                        saveLocalBackupCache();
+                        if (lib.name === currentUser) {
+                            lastKnownCoins = lib.coins;
+                            refreshCurrentUserHeader();
+                        }
+                        renderTeamManager();
+                        soundFX.playCoin();
+                        showToast(`הוספת 50 מטבעות ל-${lib.name}!`, 'success');
+                        if (isCloudReady && db) {
+                            await updateDoc(librarianDocRef(lib.name), {
+                                coins: lib.coins,
+                                lastCoinAdjustAt: lib.lastCoinAdjustAt
+                            }).catch(() => {});
+                        }
+                    });
+                }
+
+                const minusCoinsBtn = row.querySelector('.minus-coins-btn');
+                if (minusCoinsBtn) {
+                    minusCoinsBtn.addEventListener('click', async () => {
+                        if (getCoinCooldownRemainingMs(lib) > 0 || (Number(lib.coins) || 0) < 5) return;
+                        lib.coins = Math.max(0, (Number(lib.coins) || 0) - 5);
+                        lib.lastCoinAdjustAt = Date.now();
+                        saveLocalBackupCache();
+                        if (lib.name === currentUser) {
+                            lastKnownCoins = lib.coins;
+                            refreshCurrentUserHeader();
+                        }
+                        renderTeamManager();
+                        showToast(`הורדו 5 מטבעות מ-${lib.name}.`, 'info');
+                        if (isCloudReady && db) {
+                            await updateDoc(librarianDocRef(lib.name), {
+                                coins: lib.coins,
+                                lastCoinAdjustAt: lib.lastCoinAdjustAt
+                            }).catch(() => {});
+                        }
+                    });
+                }
+
+                const toggleAdminBtn = row.querySelector('.toggle-admin-btn');
+                if (toggleAdminBtn) {
+                    toggleAdminBtn.addEventListener('click', async () => {
+                        lib.isAdmin = !lib.isAdmin;
+                        saveLocalBackupCache();
+                        renderTeamManager();
+                        showToast(lib.isAdmin ? `${lib.name} הוגדר/ה כמנהל/ת` : `הרשאות הניהול של ${lib.name} הוסרו`, 'success');
+                        if (isCloudReady && db) {
+                            await updateDoc(librarianDocRef(lib.name), { isAdmin: lib.isAdmin }).catch(() => {});
+                        }
+                    });
+                }
 
                 const unlockBtn = row.querySelector('.unlock-lib-btn');
                 if (unlockBtn) {
