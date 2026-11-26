@@ -729,7 +729,15 @@
 
         async function initFirebaseSync() {
             try {
-                let config = null;
+                // הגדרות החיבור הישיר לפרויקט Firebase של ספריית בית הספר הלל
+                let config = {
+                    apiKey: "AIzaSyDoxeEfIMn6s3yUVht-USoCw82B7oPAoj4",
+                    authDomain: "hillel-library-596fb.firebaseapp.com",
+                    projectId: "hillel-library-596fb",
+                    storageBucket: "hillel-library-596fb.firebasestorage.app",
+                    messagingSenderId: "697387897222",
+                    appId: "1:697387897222:web:8b513a45cf3c02a209dc07"
+                };
                 if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                     config = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
                 }
