@@ -972,7 +972,8 @@
                 }
             }
 
-            if (targetLib.lockedAccountId && targetLib.lockedAccountId !== myAccountId) {
+            // מנהל ראשי יכול להתחבר מכל מחשב/דפדפן גם אם היה נעול על מזהה קודם
+            if (!targetLib.isAdmin && targetLib.lockedAccountId && targetLib.lockedAccountId !== myAccountId) {
                 showLoginMsg('שם המשתמש הזה שייך לחשבון אחר. הכניסה נכשלה.', true);
                 return;
             }
@@ -1215,33 +1216,37 @@
             filtered.forEach(loan => {
                 const overdue = isLoanOverdue(loan);
                 const returned = Boolean(loan.returnedAt);
+                const lenderName = loan.librarian || loan.borrowedBy || 'לא צוין';
+                const borrowDateStr = formatHebrewDate(loan.borrowedAt) || 'לא צוין';
 
                 let statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">מושאל</span>`;
                 let cardBorder = 'border-slate-200 dark:border-slate-800';
                 if (returned) {
-                    const returnerTag = loan.returnedBy ? ` · ע״י ${escapeHtml(loan.returnedBy)}` : '';
+                    const returnerTag = loan.returnedBy ? ` · הוחזר ע״י ${escapeHtml(loan.returnedBy)}` : '';
                     statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200">הוחזר (${formatHebrewDate(loan.returnedAt)}${returnerTag})</span>`;
                 } else if (overdue) {
                     statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">איחור בהחזרה</span>`;
                     cardBorder = 'border-red-300 dark:border-red-800/80 bg-red-50/30 dark:bg-red-950/10';
                 }
 
+                const canDelete = isAdmin || returned;
+
                 const card = document.createElement('div');
                 card.className = `p-4 rounded-2xl border ${cardBorder} bg-white dark:bg-slate-900/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition`;
                 card.innerHTML = `
-                    <div class="space-y-1 min-w-0">
+                    <div class="space-y-1.5 min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">${escapeHtml(loan.bookName)}</span>
                             ${statusBadge}
                         </div>
                         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                            <span>👤 <strong>${escapeHtml(loan.studentName)}</strong> (${escapeHtml(loan.studentClass)})</span>
-                            <span>📅 הושאל: ${formatHebrewDate(loan.borrowedAt)}</span>
-                            <span>✍️ ספרן/ית: ${escapeHtml(loan.librarian)}</span>
+                            <span>👤 תלמיד/ה: <strong>${escapeHtml(loan.studentName)}</strong> (${escapeHtml(loan.studentClass)})</span>
+                            <span>📅 תאריך השאלה: <strong>${borrowDateStr}</strong></span>
+                            <span>✍️ משאיל/ה: <strong>${escapeHtml(lenderName)}</strong></span>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    <div class="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
                         ${!returned ? `
                             <button type="button" data-action="return" data-id="${loan.id}"
                                 class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition cursor-pointer">
@@ -1252,10 +1257,10 @@
                             class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer">
                             ✏️
                         </button>
-                        ${isAdmin ? `
-                            <button type="button" data-action="delete" data-id="${loan.id}" title="מחיקה"
-                                class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-600 transition cursor-pointer">
-                                🗑️
+                        ${canDelete ? `
+                            <button type="button" data-action="delete" data-id="${loan.id}" title="מחיקת רשומה"
+                                class="px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-300 font-bold text-xs flex items-center gap-1 transition cursor-pointer">
+                                <span>🗑️</span>${returned ? ' מחיקה' : ''}
                             </button>
                         ` : ''}
                     </div>
@@ -1663,76 +1668,23 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <button type="button" ${isOnCooldown ? 'disabled' : ''} class="plus-coins-btn px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-extrabold cursor-pointer">+50 מטבעות</button>
                         <button type="button" ${isOnCooldown || (lib.coins || 0) < 5 ? 'disabled' : ''} class="minus-coins-btn px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-xs font-extrabold cursor-pointer">−5 מטבעות</button>
+                        ${lib.lockedAccountId && !isProtected ? `<button type="button" class="unlock-lib-btn px-3 py-1.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold cursor-pointer">🔓 שחרור נעילה</button>` : ''}
                         ${!isProtected ? `<button type="button" class="toggle-admin-btn px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold cursor-pointer">${lib.isAdmin ? 'הסרת ניהול' : 'הגדר כמנהל'}</button>` : ''}
                         ${!isProtected ? `<button type="button" class="remove-lib-btn p-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer">🗑️</button>` : ''}
                     </div>
                 `;
 
-                row.querySelector('.plus-coins-btn').addEventListener('click', async () => {
-                    const leftMs = getCoinCooldownRemainingMs(lib);
-                    if (leftMs > 0) {
-                        showToast(`ניתן לשנות מטבעות עבור ${lib.name} בעוד ${Math.ceil(leftMs / 60000)} דקות.`, 'error');
-                        return;
-                    }
-                    const nextCoins = (lib.coins || 0) + 50;
-                    const nowTs = Date.now();
-                    lib.coins = nextCoins;
-                    lib.lastCoinAdjustAt = nowTs;
-                    saveLocalBackupCache();
-                    renderTeamManager();
-                    if (isCloudReady && db) {
-                        try {
-                            await updateDoc(librarianDocRef(lib.name), { coins: nextCoins, lastCoinAdjustAt: nowTs });
-                        } catch (e) {
-                            showToast('לא ברור אם השינוי נשמר. בדקו את היתרה ברשימה לפני שלוחצים שוב.', 'error');
+                const unlockBtn = row.querySelector('.unlock-lib-btn');
+                if (unlockBtn) {
+                    unlockBtn.addEventListener('click', async () => {
+                        lib.lockedAccountId = null;
+                        lib.lastSeen = 0;
+                        saveLocalBackupCache();
+                        renderTeamManager();
+                        showToast(`הנעילה של ${lib.name} שוחררה. כעת ניתן להתחבר ממחשב חדש.`, 'success');
+                        if (isCloudReady && db) {
+                            await updateDoc(librarianDocRef(lib.name), { lockedAccountId: null, lastSeen: 0 }).catch(() => {});
                         }
-                    }
-                });
-
-                row.querySelector('.minus-coins-btn').addEventListener('click', async () => {
-                    const leftMs = getCoinCooldownRemainingMs(lib);
-                    if (leftMs > 0) {
-                        showToast(`ניתן לשנות מטבעות עבור ${lib.name} בעוד ${Math.ceil(leftMs / 60000)} דקות.`, 'error');
-                        return;
-                    }
-                    if ((lib.coins || 0) < 5) return;
-                    const nextCoins = Math.max(0, (lib.coins || 0) - 5);
-                    const nowTs = Date.now();
-                    lib.coins = nextCoins;
-                    lib.lastCoinAdjustAt = nowTs;
-                    saveLocalBackupCache();
-                    renderTeamManager();
-                    if (isCloudReady && db) {
-                        try {
-                            await updateDoc(librarianDocRef(lib.name), { coins: nextCoins, lastCoinAdjustAt: nowTs });
-                        } catch (e) {
-                            showToast('לא ברור אם השינוי נשמר. בדקו את היתרה ברשימה לפני שלוחצים שוב.', 'error');
-                        }
-                    }
-                });
-
-                const toggleAdminBtn = row.querySelector('.toggle-admin-btn');
-                if (toggleAdminBtn) {
-                    toggleAdminBtn.addEventListener('click', () => {
-                        const makingAdmin = !lib.isAdmin;
-                        openConfirmModal(
-                            makingAdmin ? `להגדיר את ${lib.name} כמנהל/ת?` : `להסיר ניהול מ-${lib.name}?`,
-                            makingAdmin
-                                ? `מנהל/ת יכול/ה לערוך כיתות, לנהל צוות ולתת מטבעות. בכניסה הבאה ${lib.name} יידרש להזין גם את סיסמת העל (${sharedState.adminPassword}).`
-                                : 'הרשאות הניהול יוסרו ויידרש רק קוד הכניסה הכללי.',
-                            'אישור',
-                            async () => {
-                                lib.isAdmin = makingAdmin;
-                                saveLocalBackupCache();
-                                renderTeamManager();
-                                if (makingAdmin) {
-                                    showToast(`${lib.name} מונה למנהל! סיסמת העל למסירה: ${sharedState.adminPassword}`, 'success');
-                                }
-                                if (isCloudReady && db) {
-                                    await updateDoc(librarianDocRef(lib.name), { isAdmin: makingAdmin }).catch(() => {});
-                                }
-                            }
-                        );
                     });
                 }
 
