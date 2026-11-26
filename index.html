@@ -216,7 +216,7 @@
                 </div>
 
                 <form id="new-loan-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-4 items-end">
-                    <div class="lg:col-span-4">
+                    <div class="lg:col-span-3">
                         <label for="student-name" class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">שם התלמיד/ה</label>
                         <input type="text" id="student-name" required placeholder="לדוגמה: נועה לוי"
                             class="w-full px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20">
@@ -229,10 +229,16 @@
                         </select>
                     </div>
 
-                    <div class="lg:col-span-4">
+                    <div class="lg:col-span-3">
                         <label for="book-name" class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">שם הספר</label>
                         <input type="text" id="book-name" required placeholder="לדוגמה: הארי פוטר ואבן החכמים"
                             class="w-full px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <label for="due-date-input" class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">תאריך החזרה מיועד</label>
+                        <input type="date" id="due-date-input" required
+                            class="w-full px-3 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20">
                     </div>
 
                     <div class="lg:col-span-2">
@@ -426,6 +432,10 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">שם הספר</label>
                     <input type="text" id="edit-loan-book" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">תאריך החזרה מיועד</label>
+                    <input type="date" id="edit-loan-due-date" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" class="close-modal-btn px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-bold text-sm cursor-pointer" data-target="modal-edit-loan">ביטול</button>
@@ -1005,6 +1015,7 @@
                 todayEl.textContent = new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
             }
             populateClassesSelect();
+            resetDefaultDueDateInput();
 
             if (currentUser && sharedState.librarians[currentUser]) {
                 enterMainApp();
@@ -1107,6 +1118,31 @@
         // =========================================================================
         // 6. ניהול השאלות, החזרות, סינון וייצוא
         // =========================================================================
+        const THREE_WEEKS_MS = 21 * 24 * 60 * 60 * 1000;
+
+        function toDateInputString(ts) {
+            const d = new Date(ts);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function fromDateInputString(str) {
+            if (!str) return Date.now() + THREE_WEEKS_MS;
+            const [y, m, d] = str.split('-').map(Number);
+            // סוף היום של תאריך ההחזרה המיועד כדי שלא ייחשב איחור באותו יום עצמו
+            return new Date(y, (m || 1) - 1, d || 1, 23, 59, 59, 999).getTime();
+        }
+
+        function resetDefaultDueDateInput() {
+            const dueInput = document.getElementById('due-date-input');
+            if (dueInput) {
+                dueInput.value = toDateInputString(Date.now() + THREE_WEEKS_MS);
+            }
+        }
+        resetDefaultDueDateInput();
+
         function populateClassesSelect() {
             const selects = [document.getElementById('student-class'), document.getElementById('edit-loan-class')];
             selects.forEach(sel => {
@@ -1129,7 +1165,11 @@
             const studentName = document.getElementById('student-name').value.trim();
             const studentClass = document.getElementById('student-class').value;
             const bookName = document.getElementById('book-name').value.trim();
+            const dueDateVal = document.getElementById('due-date-input').value;
             if (!studentName || !studentClass || !bookName) return;
+
+            const borrowedAt = Date.now();
+            const dueAt = dueDateVal ? fromDateInputString(dueDateVal) : (borrowedAt + THREE_WEEKS_MS);
 
             const newLoan = {
                 id: 'loan_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -1137,7 +1177,8 @@
                 studentClass,
                 bookName,
                 librarian: currentUser,
-                borrowedAt: Date.now(),
+                borrowedAt,
+                dueAt,
                 returnedAt: null,
                 returnedBy: null
             };
@@ -1148,8 +1189,9 @@
 
             document.getElementById('student-name').value = '';
             document.getElementById('book-name').value = '';
+            resetDefaultDueDateInput();
             soundFX.playSuccess();
-            showToast(`הספר "${bookName}" הושאל ל-${studentName} (${studentClass})`, 'success');
+            showToast(`הספר "${bookName}" הושאל ל-${studentName} עד ${formatHebrewDate(dueAt)}`, 'success');
 
             if (isCloudReady && db) {
                 setDoc(loanDocRef(newLoan.id), newLoan).catch(() => {
@@ -1158,10 +1200,13 @@
             }
         });
 
+        function getLoanDueTimestamp(loan) {
+            return loan.dueAt || ((loan.borrowedAt || 0) + THREE_WEEKS_MS);
+        }
+
         function isLoanOverdue(loan) {
             if (loan.returnedAt) return false;
-            const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
-            return (Date.now() - (loan.borrowedAt || 0)) > fourteenDaysMs;
+            return Date.now() > getLoanDueTimestamp(loan);
         }
 
         function formatHebrewDate(ts) {
@@ -1221,6 +1266,7 @@
                 const returned = Boolean(loan.returnedAt);
                 const lenderName = loan.librarian || loan.borrowedBy || 'לא צוין';
                 const borrowDateStr = formatHebrewDate(loan.borrowedAt) || 'לא צוין';
+                const dueDateStr = formatHebrewDate(getLoanDueTimestamp(loan)) || 'לא צוין';
 
                 let statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">מושאל</span>`;
                 let cardBorder = 'border-slate-200 dark:border-slate-800';
@@ -1245,6 +1291,7 @@
                         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
                             <span>👤 תלמיד/ה: <strong>${escapeHtml(loan.studentName)}</strong> (${escapeHtml(loan.studentClass)})</span>
                             <span>📅 תאריך השאלה: <strong>${borrowDateStr}</strong></span>
+                            <span class="${overdue && !returned ? 'text-red-600 dark:text-red-400 font-bold' : ''}">⏳ החזרה מיועדת: <strong>${dueDateStr}</strong></span>
                             <span>✍️ משאיל/ה: <strong>${escapeHtml(lenderName)}</strong></span>
                         </div>
                     </div>
@@ -1304,6 +1351,7 @@
                 document.getElementById('edit-loan-student').value = loan.studentName;
                 document.getElementById('edit-loan-class').value = loan.studentClass;
                 document.getElementById('edit-loan-book').value = loan.bookName;
+                document.getElementById('edit-loan-due-date').value = toDateInputString(getLoanDueTimestamp(loan));
                 document.getElementById('modal-edit-loan').classList.remove('hidden');
             } else if (action === 'delete') {
                 openConfirmModal(
@@ -1331,6 +1379,8 @@
             loan.studentName = document.getElementById('edit-loan-student').value.trim();
             loan.studentClass = document.getElementById('edit-loan-class').value;
             loan.bookName = document.getElementById('edit-loan-book').value.trim();
+            const dueVal = document.getElementById('edit-loan-due-date').value;
+            if (dueVal) loan.dueAt = fromDateInputString(dueVal);
             saveLocalBackupCache();
             renderLoans();
             document.getElementById('modal-edit-loan').classList.add('hidden');
@@ -1339,7 +1389,8 @@
                 updateDoc(loanDocRef(id), {
                     studentName: loan.studentName,
                     studentClass: loan.studentClass,
-                    bookName: loan.bookName
+                    bookName: loan.bookName,
+                    dueAt: loan.dueAt
                 }).catch(() => {});
             }
         });
@@ -1500,7 +1551,7 @@
         // ייצוא לאקסל CSV (מנהל בלבד)
         document.getElementById('menu-export-csv').addEventListener('click', () => {
             mainDropdownMenu.classList.add('hidden');
-            const rows = [['שם התלמיד/ה', 'כיתה', 'שם הספר', 'הושאל ע״י', 'תאריך השאלה', 'סטטוס', 'הוחזר ע״י', 'תאריך החזרה']];
+            const rows = [['שם התלמיד/ה', 'כיתה', 'שם הספר', 'הושאל ע״י', 'תאריך השאלה', 'תאריך החזרה מיועד', 'סטטוס', 'הוחזר ע״י', 'תאריך החזרה בפועל']];
             sharedState.loans.forEach(l => {
                 const status = l.returnedAt ? 'הוחזר' : (isLoanOverdue(l) ? 'איחור' : 'מושאל');
                 rows.push([
@@ -1509,6 +1560,7 @@
                     l.bookName || '',
                     l.librarian || '',
                     formatHebrewDate(l.borrowedAt),
+                    formatHebrewDate(getLoanDueTimestamp(l)),
                     status,
                     l.returnedAt ? (l.returnedBy || l.librarian || '') : '',
                     l.returnedAt ? formatHebrewDate(l.returnedAt) : ''
