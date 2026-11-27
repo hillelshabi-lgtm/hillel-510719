@@ -181,9 +181,6 @@
                             <button type="button" id="menu-team-list" class="hidden w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
                                 <span class="text-blue-600 dark:text-blue-400">👥</span> רשימת צוות
                             </button>
-                            <button type="button" id="menu-passwords" class="hidden w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
-                                <span class="text-blue-600 dark:text-blue-400">🔐</span> ניהול סיסמאות
-                            </button>
                             <button type="button" id="menu-export-csv" class="hidden w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2.5 cursor-pointer">
                                 <span class="text-blue-600 dark:text-blue-400">📊</span> ייצוא לאקסל (CSV)
                             </button>
@@ -345,33 +342,6 @@
             <div id="team-list-container" class="p-4 overflow-y-auto space-y-3 flex-1">
                 <!-- רשימת ספרנים לניהול -->
             </div>
-        </div>
-    </div>
-
-    <!-- מודאל ניהול סיסמאות (מנהל בלבד) -->
-    <div id="modal-passwords" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-            <div class="px-6 py-4 bg-blue-800 text-white flex items-center justify-between">
-                <h3 class="text-xl font-extrabold">🔐 ניהול סיסמאות מערכת</h3>
-                <button type="button" class="close-modal-btn p-1.5 rounded-xl hover:bg-blue-700 text-white cursor-pointer" data-target="modal-passwords">✕</button>
-            </div>
-            <form id="passwords-form" class="p-6 space-y-4">
-                <div>
-                    <label for="input-basic-password" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">סיסמת בייסיק (כללית לכל הספרנים)</label>
-                    <input type="text" id="input-basic-password" required
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:outline-none focus:border-blue-600">
-                </div>
-                <div>
-                    <label for="input-admin-password" class="block text-sm font-bold text-amber-700 dark:text-amber-300 mb-1">סיסמת על (למנהלים בלבד)</label>
-                    <input type="text" id="input-admin-password" required
-                        class="w-full px-4 py-2.5 rounded-xl border border-amber-400 dark:border-amber-600 bg-amber-50/40 dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:outline-none focus:border-amber-500">
-                </div>
-                <p id="passwords-form-error" class="hidden text-xs font-bold text-red-600 dark:text-red-400"></p>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" class="close-modal-btn px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-bold text-sm cursor-pointer" data-target="modal-passwords">ביטול</button>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm cursor-pointer">שמירת סיסמאות</button>
-                </div>
-            </form>
         </div>
     </div>
 
@@ -642,6 +612,7 @@
             deviceId = 'dev_' + Math.random().toString(36).slice(2) + '_' + Date.now();
             localStorage.setItem(STORAGE_KEYS.DEVICE_ID, deviceId);
         }
+        const myAccountId = deviceId;
 
         let localPrefs = { darkMode: false, muted: false };
         try {
@@ -667,9 +638,9 @@
         // =========================================================================
         // 3. מצב משותף (State) וחיבור Firebase Firestore בזמן אמת
         // =========================================================================
+        // אימות הסיסמה מתבצע אך ורק מול שרת Node.js המאובטח ב-Render (ללא שום סיסמה בקוד הלקוח)
+
         let sharedState = {
-            basicPassword: '44918',
-            adminPassword: '340430',
             classes: [...DEFAULT_CLASSES],
             librarians: {
                 'יאשה': { name: 'יאשה', isAdmin: false, coins: 0, lockedAccountId: null, lastSeen: 0, lastCoinAdjustAt: 0, activeTitle: null, ownedTitles: [], activeSkin: 'classic_blue', ownedSkins: ['classic_blue'] },
@@ -685,8 +656,6 @@
             if (cached && cached.librarians && Object.keys(cached.librarians).length > 0) {
                 const hasOldClasses = Array.isArray(cached.classes) && (cached.classes.includes('א׳1') || cached.classes.includes('א׳א'));
                 sharedState = {
-                    basicPassword: cached.basicPassword || '44918',
-                    adminPassword: cached.adminPassword || '340430',
                     classes: (Array.isArray(cached.classes) && cached.classes.length && !hasOldClasses) ? cached.classes : [...DEFAULT_CLASSES],
                     librarians: cached.librarians,
                     loans: Array.isArray(cached.loans) ? cached.loans : []
@@ -803,8 +772,6 @@
                 if (!metaSnap.exists()) {
                     await setDoc(metaDocRef(), {
                         classes: [...DEFAULT_CLASSES],
-                        basicPassword: '44918',
-                        adminPassword: '340430',
                         seededAt: Date.now()
                     });
                     for (const [name, data] of Object.entries(sharedState.librarians)) {
@@ -830,8 +797,6 @@
             onSnapshot(metaDocRef(), (snap) => {
                 if (snap.exists()) {
                     const data = snap.data();
-                    if (data.basicPassword) sharedState.basicPassword = String(data.basicPassword);
-                    if (data.adminPassword) sharedState.adminPassword = String(data.adminPassword);
                     if (Array.isArray(data.classes)) {
                         if (data.classes.includes('א׳1') || data.classes.includes('א׳א')) {
                             sharedState.classes = [...DEFAULT_CLASSES];
@@ -967,22 +932,39 @@
                 showLoginMsg('שם המשתמש לא נמצא. הכניסה נכשלה.', true);
                 return;
             }
-            if (pass !== sharedState.basicPassword) {
-                showLoginMsg('הכניסה לא הושלמה. נסו שוב.', true);
-                return;
-            }
-            const targetLib = sharedState.librarians[username];
-            if (targetLib.isAdmin && adminPass !== sharedState.adminPassword) {
-                showLoginMsg('סיסמת העל שגויה. הכניסה נכשלה.', true);
-                return;
-            }
 
-            const myAccountId = auth?.currentUser?.uid || deviceId;
-            for (const [libName, libObj] of Object.entries(sharedState.librarians)) {
-                if (libName !== username && libObj.lockedAccountId === myAccountId) {
-                    showLoginMsg(`החשבון שלך כבר רשום בשם ${libName}.`, true);
+            const targetLib = sharedState.librarians[username];
+            const submitBtn = document.getElementById('login-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'מאמת מול השרת...';
+
+            try {
+                const authRes = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username,
+                        password: pass,
+                        adminPassword: adminPass,
+                        isAdmin: Boolean(targetLib.isAdmin)
+                    })
+                });
+                const authData = await authRes.json();
+                if (!authRes.ok || !authData.ok) {
+                    showLoginMsg(authData.message || 'הכניסה לא הושלמה. נסו שוב.', true);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'כניסה למערכת';
                     return;
                 }
+                sessionStorage.setItem('hillel_server_token', authData.token);
+            } catch (networkErr) {
+                showLoginMsg('שגיאת תקשורת מול שרת האבטחה. נסו שוב.', true);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'כניסה למערכת';
+                return;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'כניסה למערכת';
             }
 
             // מנהל ראשי יכול להתחבר מכל מחשב/דפדפן גם אם היה נעול על מזהה קודם
@@ -1111,7 +1093,6 @@
 
             document.getElementById('menu-edit-classes').classList.toggle('hidden', !user.isAdmin);
             document.getElementById('menu-team-list').classList.toggle('hidden', !user.isAdmin);
-            document.getElementById('menu-passwords').classList.toggle('hidden', !user.isAdmin);
             document.getElementById('menu-export-csv').classList.toggle('hidden', !user.isAdmin);
         }
 
@@ -1430,7 +1411,7 @@
             });
         });
 
-        ['modal-librarian-profile', 'modal-classes', 'modal-team', 'modal-passwords', 'modal-settings', 'modal-edit-loan'].forEach(modalId => {
+        ['modal-librarian-profile', 'modal-classes', 'modal-team', 'modal-settings', 'modal-edit-loan'].forEach(modalId => {
             const modalEl = document.getElementById(modalId);
             if (modalEl) {
                 modalEl.addEventListener('click', (e) => {
@@ -1823,48 +1804,6 @@
                 container.appendChild(row);
             });
         }
-
-        // ניהול סיסמאות מערכת (מנהל בלבד)
-        document.getElementById('menu-passwords').addEventListener('click', () => {
-            mainDropdownMenu.classList.add('hidden');
-            const me = sharedState.librarians[currentUser];
-            if (!me || !me.isAdmin) return;
-            document.getElementById('input-basic-password').value = sharedState.basicPassword;
-            document.getElementById('input-admin-password').value = sharedState.adminPassword;
-            document.getElementById('passwords-form-error').classList.add('hidden');
-            document.getElementById('modal-passwords').classList.remove('hidden');
-        });
-
-        document.getElementById('passwords-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const me = sharedState.librarians[currentUser];
-            if (!me || !me.isAdmin) return;
-            const newBasic = document.getElementById('input-basic-password').value.trim();
-            const newAdmin = document.getElementById('input-admin-password').value.trim();
-            const err = document.getElementById('passwords-form-error');
-            err.classList.add('hidden');
-
-            if (!newBasic || !newAdmin) {
-                err.textContent = 'יש למלא את שתי הסיסמאות.';
-                err.classList.remove('hidden');
-                return;
-            }
-
-            sharedState.basicPassword = newBasic;
-            sharedState.adminPassword = newAdmin;
-            saveLocalBackupCache();
-            document.getElementById('modal-passwords').classList.add('hidden');
-            showToast('הסיסמאות עודכנו בהצלחה לכל המערכת!', 'success');
-
-            if (isCloudReady && db) {
-                await setDoc(metaDocRef(), {
-                    basicPassword: newBasic,
-                    adminPassword: newAdmin
-                }, { merge: true }).catch(() => {
-                    showToast('שגיאה בשמירת הסיסמאות בענן. נסו שוב.', 'error');
-                });
-            }
-        });
 
         // =========================================================================
         // 8. ניהול אזור המשחקים וחנות הספרייה
